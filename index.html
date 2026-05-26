@@ -1430,10 +1430,9 @@ function DisneyTripPlanner() {
                 <button onClick={()=>setShowSettings(true)} style={{background:"none",border:"none",fontSize:"20px",cursor:"pointer",color:"#888"}}>⚙️</button>
               </div>
             </div>
-            <div style={{fontSize:"12px",color:"#4caf50",textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",gap:"4px",marginTop:"2px",paddingBottom:"10px"}}>
-              <span style={{fontSize:"10px"}}>●</span>端末に保存済
-              {countdown!==null&&<span style={{background:"#e3f2fd",color:"#1976d2",borderRadius:"10px",padding:"1px 8px",marginLeft:"8px",fontWeight:"700"}}>{countdown>0?`あと${countdown}日`:countdown===0?"今日！🎉":`${Math.abs(countdown)}日前`}</span>}
-            </div>
+            {countdown!==null&&<div style={{fontSize:"12px",textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",gap:"4px",marginTop:"2px",paddingBottom:"10px"}}>
+              <span style={{background:"#e3f2fd",color:"#1976d2",borderRadius:"10px",padding:"1px 8px",fontWeight:"700"}}>{countdown>0?`あと${countdown}日`:countdown===0?"今日！🎉":`${Math.abs(countdown)}日前`}</span>
+            </div>}
           </div>
           <div style={{padding:"0 12px 12px"}}>
             <div style={{display:"flex",background:parkTabsBg,borderRadius:"12px",padding:"4px"}}>
