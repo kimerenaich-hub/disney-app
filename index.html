@@ -80,7 +80,7 @@ const DATA = {
     { id:"l21", name:'美女と野獣"魔法のものがたり"', area:"ファンタジーランド", emoji:"🌹", tags:["family","popular"], desc:"ベルとビーストの物語を世界最大級のライドシステムで体験。", dur:"約5分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/197/", dpa:3, pp:0, imgUrl:W+"b/b7/Tokyo_Disneyland_%28Oct_2020%29_6.jpg/500px-Tokyo_Disneyland_%28Oct_2020%29_6.jpg" },
     { id:"l22", name:"ピーターパン空の旅", area:"ファンタジーランド", emoji:"🧚", tags:["family"], desc:"帆船でネバーランドへ飛び立つ幻想的なフライングライド。", dur:"約2分30秒", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/164/", dpa:0, pp:0, imgUrl:W+"b/bb/TDL_Peter_Pan%27s_Flight.jpg/500px-TDL_Peter_Pan%27s_Flight.jpg" },
     { id:"l23", name:"ピノキオの冒険旅行", area:"ファンタジーランド", emoji:"🎭", tags:["family"], desc:"トロッコに乗ってピノキオの冒険の旅をたどるダークライド。", dur:"約3分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/168/", dpa:0, pp:0, imgUrl:W+"3/30/Pinocchio%27s_Daring_Journey_%28Tokyo_Disneyland%29_1.jpg/500px-Pinocchio%27s_Daring_Journey_%28Tokyo_Disneyland%29_1.jpg" },
-    { id:"l24", name:"プーさんのハニーハント", area:"ファンタジーランド", emoji:"🍯", tags:["family","popular"], desc:"くまのプーさんの夢の世界をハニーポットに乗って冒険。", dur:"約4分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/174/", dpa:0, pp:1, imgUrl:W+"f/fb/Pooh%27s_Hunny_Hunt_1.jpg/500px-Pooh%27s_Hunny_Hunt_1.jpg" },
+    { id:"l24", name:"プーさんのハニーハント", area:"ファンタジーランド", emoji:"🍯", tags:["family","popular"], desc:"くまのプーさんの夢の世界をハニーポットに乗って冒険。", dur:"約4分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/174/", dpa:3, pp:0, imgUrl:W+"f/fb/Pooh%27s_Hunny_Hunt_1.jpg/500px-Pooh%27s_Hunny_Hunt_1.jpg" },
     { id:"l25", name:"ホーンテッドマンション", area:"ファンタジーランド", emoji:"👻", tags:["family"], desc:"999人の陽気な幽霊が住む屋敷を探索するダークライド。", dur:"約9分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/171/", dpa:0, pp:1, imgUrl:W+"f/fa/Haunted_Mansion_%28Tokyo_Disneyland%29_1.jpg/500px-Haunted_Mansion_%28Tokyo_Disneyland%29_1.jpg" },
     { id:"l26", name:"ミッキーのフィルハーマジック", area:"ファンタジーランド", emoji:"🎵", tags:["show","family"], desc:"ミッキーが指揮するオーケストラで映画の世界へ飛び込む3Dシアター。", dur:"約18分", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/167/", dpa:0, pp:0, imgUrl:W+"2/2a/Mickey%27s_PhilharMagic_TDL.JPG/500px-Mickey%27s_PhilharMagic_TDL.JPG" },
     { id:"l27", name:"ガジェットのゴーコースター", area:"トゥーンタウン", emoji:"🎢", tags:["family"], desc:"天才発明家ガジェットが作ったコースター。", dur:"約2分", height:"なし", thrill:"★★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/179/", dpa:0, pp:0, imgUrl:W+"4/4c/Gadget%27s_Go_Coaster_-_Tokyo_Disneyland.jpg/500px-Gadget%27s_Go_Coaster_-_Tokyo_Disneyland.jpg" },
@@ -848,7 +848,7 @@ function DayTab({ data, park, onOpen, onChange }) {
         <div style={{flex:1}}>
           <p style={{fontSize:"11px",fontWeight:"700",color:data.tripDate?"rgba(255,255,255,0.6)":C.sub,marginBottom:"4px"}}>旅行日</p>
           <input type="date" value={data.tripDate||""} onChange={e=>onChange("tripDate",e.target.value)}
-            style={{background:"transparent",border:"none",outline:"none",fontSize:"20px",fontWeight:"900",color:data.tripDate?"#fff":C.text,width:"100%",cursor:"pointer",WebkitAppearance:"none",padding:0}}/>
+            style={{background:"transparent",border:"none",outline:"none",fontSize:"18px",fontWeight:"900",color:data.tripDate?"#fff":C.sub,width:"100%",cursor:"pointer",padding:0,colorScheme:data.tripDate?"dark":"light"}}/>
         </div>
       </div>
 
@@ -1400,15 +1400,52 @@ const NAV = [
 function DisneyTripPlanner() {
   const [appData, setAppData] = useState(()=>loadData());
   const [tab, setTab] = useState("list");
+  const [undoStack, setUndoStack] = useState([]); // max5: [{tab,appData,selectedAttr}]
   const [selectedAttr, setSelectedAttr] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+
+  // 常に最新の状態をrefで保持（useCallback内からも参照できる）
+  const snapRef = useRef();
+  snapRef.current = {tab, appData, selectedAttr};
+
+  const pushUndo = () => {
+    const s = snapRef.current;
+    setUndoStack(prev => [...prev.slice(-4), {tab:s.tab, appData:s.appData, selectedAttr:s.selectedAttr}]);
+  };
+
+  const goTo = (newTab) => {
+    if (newTab === snapRef.current.tab) return;
+    pushUndo();
+    setTab(newTab);
+    setSelectedAttr(null);
+  };
+
+  const openAttr = (attr) => {
+    pushUndo();
+    setSelectedAttr(attr);
+  };
+
+  const goBack = () => {
+    if (undoStack.length === 0) return;
+    const prev = undoStack[undoStack.length - 1];
+    setUndoStack(h => h.slice(0, -1));
+    setTab(prev.tab);
+    setAppData(prev.appData);
+    setSelectedAttr(prev.selectedAttr);
+  };
+
+  const canGoBack = undoStack.length > 0;
   const park = appData.park;
   const users = appData.users || INITIAL_DATA.users;
   const dark = appData.darkMode;
 
   useEffect(()=>{ saveData(appData); }, [appData]);
   useEffect(()=>{ document.body.style.background = dark ? '#111827' : '#f5f7fa'; }, [dark]);
-  const handleChange = useCallback((key,value)=>setAppData(prev=>({...prev,[key]:value})),[]);
+  const handleChange = useCallback((key,value)=>{
+    const s = snapRef.current;
+    setUndoStack(prev=>[...prev.slice(-4),{tab:s.tab,appData:s.appData,selectedAttr:s.selectedAttr}]);
+    setAppData(prev=>({...prev,[key]:value}));
+  },[]);
   const setPark = (p)=>handleChange("park",p);
   const toggleDark = ()=>handleChange("darkMode",!dark);
   const countdown = calcCountdown(appData.tripDate);
@@ -1434,6 +1471,11 @@ function DisneyTripPlanner() {
         <div style={{background:headerBg,boxShadow:`0 1px 0 ${navBd}`,position:"sticky",top:0,zIndex:100,paddingTop:"env(safe-area-inset-top,0px)"}}>
           <div style={{padding:"14px 16px 0",position:"relative"}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
+              <div style={{position:"absolute",left:"0"}}>
+                {canGoBack&&<button onClick={goBack} style={{background:"none",border:"none",fontSize:"20px",cursor:"pointer",color:"#007AFF",padding:"2px 6px",fontWeight:"700",display:"flex",alignItems:"center",gap:"2px"}}>
+                  <span style={{fontSize:"18px"}}>‹</span><span style={{fontSize:"13px",fontWeight:"600"}}>戻る</span>
+                </button>}
+              </div>
               <div style={{fontSize:"22px",fontWeight:"800",color:textColor,textAlign:"center"}}>✨ Disney Trip Planner</div>
               <div style={{position:"absolute",right:"0",display:"flex",gap:"6px"}}>
                 <button onClick={toggleDark} style={{background:"none",border:"none",fontSize:"18px",cursor:"pointer"}} title="ダークモード">{dark?"☀️":"🌙"}</button>
@@ -1463,18 +1505,18 @@ function DisneyTripPlanner() {
 
         {/* Content */}
         <div style={{padding:"12px"}}>
-          {tab==="list"&&<AttractionsTab data={appData} park={park} onOpen={setSelectedAttr} onChange={handleChange}/>}
-          {tab==="day"&&<DayTab data={appData} park={park} onOpen={setSelectedAttr} onChange={handleChange}/>}
+          {tab==="list"&&<AttractionsTab data={appData} park={park} onOpen={openAttr} onChange={handleChange}/>}
+          {tab==="day"&&<DayTab data={appData} park={park} onOpen={openAttr} onChange={handleChange}/>}
           {tab==="restaurant"&&<RestaurantTab data={appData} park={park} onChange={handleChange}/>}
           {tab==="hotel"&&<HotelTab data={appData} park={park} onChange={handleChange}/>}
-          {tab==="map"&&<MapTab data={appData} park={park} onOpen={setSelectedAttr}/>}
+          {tab==="map"&&<MapTab data={appData} park={park} onOpen={openAttr}/>}
           {tab==="history"&&<HistoryTab data={appData} park={park} onChange={handleChange}/>}
         </div>
 
         {/* Bottom Nav */}
         <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:"500px",background:navBg,borderTop:`1px solid ${navBd}`,display:"flex",zIndex:100,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
           {NAV.map(t=>(
-            <button key={t.key} style={S.navBtn(tab===t.key,dark)} onClick={()=>setTab(t.key)}>
+            <button key={t.key} style={S.navBtn(tab===t.key,dark)} onClick={()=>goTo(t.key)}>
               <span style={{fontSize:"20px",lineHeight:1}}>{t.icon}</span>{t.label}
             </button>
           ))}
