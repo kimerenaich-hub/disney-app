@@ -330,7 +330,14 @@ function loadData() {
 }
 function saveData(d) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+    // baked写真はlocalStorageに保存しない（メモリから直接読み取るため）
+    const baked = window.BAKED_PHOTOS || {};
+    const userPhotos = {};
+    for (const k in (d.photos||{})) {
+      if (d.photos[k] && d.photos[k] !== baked[k]) userPhotos[k] = d.photos[k];
+    }
+    const toSave = { ...d, photos: userPhotos };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
   } catch(e) {
     if (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014) {
       alert('⚠️ 保存容量が不足しています。\n設定の「写真を圧縮して再保存」を実行してください。');
