@@ -958,6 +958,7 @@ function AttractionsTab({ data, park, onOpen, onChange }) {
     if (areaFilter!=="all"&&a.area!==areaFilter) return false;
     if (tagFilter!=="all"&&!a.tags.includes(tagFilter)) return false;
     const w=data.want[a.id]||{}, r=data.ridden[a.id]||{};
+    if (statusFilter==="plan") return !!(data.plan||{})[a.id];
     if (statusFilter==="want") return users.some(u=>w[u.id]);
     if (statusFilter==="both") return users.every(u=>w[u.id]);
     if (statusFilter==="unridden") return !users.some(u=>r[u.id]);
@@ -989,7 +990,7 @@ function AttractionsTab({ data, park, onOpen, onChange }) {
         ))}
       </div>
       <div style={{display:"flex",gap:"6px",overflowX:"auto",paddingBottom:"4px",marginBottom:"10px"}}>
-        {[["all","すべて"],["want","投票あり"],["both",users.length===1?"行く！":"全員とも！"],["unridden","未乗車"],["visited","訪問済み"]].map(([k,l])=>(
+        {[["all","すべて"],["plan","📅当日"],["want","投票あり"],["both",users.length===1?"行く！":"全員とも！"],["unridden","未乗車"],["visited","訪問済み"]].map(([k,l])=>(
           <button key={k} style={S.chip(statusFilter===k,C)} onClick={()=>setStatusFilter(k)}>{l}</button>
         ))}
       </div>
