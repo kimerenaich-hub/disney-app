@@ -945,10 +945,11 @@ function AttractionsTab({ data, park, onOpen, onChange }) {
   const areas = [...new Set(attrs.map(a=>a.area))];
 
   const handleReset = () => {
-    if (!window.confirm("乗った・行った・いいね・当日メモ・日付をリセットしますか？\n（旅の記録・写真は残ります）")) return;
+    if (!window.confirm("乗った・行った・いいね・当日計画・当日メモ・日付をリセットしますか？\n（旅の記録・写真は残ります）")) return;
     onChange("ridden", {});
     onChange("restaurantVisited", {});
     onChange("want", {});
+    onChange("plan", {});
     onChange("restaurantFavorites", {});
     onChange("dayMemo", "");
     onChange("tripDate", "");
