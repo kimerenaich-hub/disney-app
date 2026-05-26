@@ -976,7 +976,7 @@ function AttractionsTab({ data, park, onOpen, onChange }) {
   const gridCard=(s,dark,inPlan,allWant)=>({
     background:s==="ridden"?(dark?"#064e3b":"#f0fdf4"):inPlan?(dark?"#3d3200":"#fffde7"):dark?"#1f2937":"#f5f5f5",
     borderRadius:"14px", overflow:"hidden", cursor:"pointer", position:"relative",
-    border:s==="ridden"?`2px solid #86efac`:(inPlan||allWant)?`2px solid #ffd700`:`2px solid transparent`,
+    border:s==="ridden"?`2px solid #86efac`:(inPlan||allWant)?`2px solid #ffd700`:`1px solid ${dark?"rgba(255,255,255,0.1)":"rgba(0,0,0,0.1)"}`,
   });
 
   return (
