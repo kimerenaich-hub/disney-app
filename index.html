@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Disney Planner">
+<link rel="apple-touch-icon" href="./icon.png">
+<link rel="icon" type="image/png" href="./icon.png">
+<title>✨ Disney Trip Planner</title>
+<script src="./baked_data.js" onerror="window.BAKED_PHOTOS={}"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #f5f7fa; transition: background 0.3s; }
+#root { max-width: 500px; margin: 0 auto; }
+::-webkit-scrollbar { display: none; }
+@keyframes heartBeat { 0%{transform:scale(1)} 30%{transform:scale(1.55)} 60%{transform:scale(0.88)} 100%{transform:scale(1)} }
+@keyframes starPop { 0%{transform:scale(1)} 50%{transform:scale(1.45)} 100%{transform:scale(1)} }
+.heart-anim { animation: heartBeat 0.38s ease; }
+.star-pop { animation: starPop 0.28s ease; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useCallback, useRef, useContext, createContext } = React;
+const STORAGE_KEY = "disney_v7";
+const DarkCtx = createContext(false);
+
+function useC() {
+  const dark = useContext(DarkCtx);
+  return {
+    dark,
+    bg: dark ? '#111827' : '#f5f7fa',
+    card: dark ? '#1f2937' : '#fff',
+    bd: dark ? '#374151' : '#e8e8e8',
+    text: dark ? '#f3f4f6' : '#1a1a1a',
+    sub: dark ? '#9ca3af' : '#888',
+    inBg: dark ? '#111827' : '#fafafa',
+    inBd: dark ? '#4b5563' : '#e0e0e0',
+    chip: dark ? '#374151' : '#f0f0f0',
+    chipTxt: dark ? '#d1d5db' : '#333',
+    muted: dark ? '#374151' : '#f5f5f5',
+    shadow: dark ? '0 1px 4px rgba(0,0,0,0.4)' : '0 1px 4px rgba(0,0,0,0.06)',
+    statBox: dark ? '#1f2937' : '#fff',
+  };
+}
+
+// ─── DATA ────────────────────────────────────────────────────────────────────
+const W = "https://upload.wikimedia.org/wikipedia/commons/thumb/";
+const DATA = {
+  land: [
+    { id:"l01", name:"オムニバス", area:"ワールドバザール", emoji:"🚌", tags:["family"], desc:"2階建てバスに乗ってウエスタンランドまでプラザを一周。", dur:"約20分", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/151/", dpa:0, pp:0 },
+    { id:"l02", name:"ペニーアーケード", area:"ワールドバザール", emoji:"🎮", tags:["family"], desc:"20世紀初頭のアメリカのゲームセンター。", dur:"自由", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/191/", dpa:0, pp:0 },
+    { id:"l03", name:"ジャングルクルーズ", area:"アドベンチャーランド", emoji:"🚤", tags:["family"], desc:"陽気な船長と一緒に野生動物が住む神秘的なジャングルを探険するボートライド。", dur:"約10分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/153/", dpa:0, pp:0, imgUrl:W+"2/20/Jungle_Cruise_entrance_at_Tokyo_Disneyland.jpg/500px-Jungle_Cruise_entrance_at_Tokyo_Disneyland.jpg" },
+    { id:"l04", name:"カリブの海賊", area:"アドベンチャーランド", emoji:"🏴‍☠️", tags:["family","popular"], desc:"ジャック・スパロウが登場する海賊のボートライド。", dur:"約16分", height:"なし", thrill:"★★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/152/", dpa:0, pp:0, imgUrl:W+"4/44/Pirates_of_the_Caribbean_%28Tokyo_Disneyland%29_1.jpg/500px-Pirates_of_the_Caribbean_%28Tokyo_Disneyland%29_1.jpg" },
+    { id:"l05", name:"ウエスタンリバー鉄道", area:"アドベンチャーランド", emoji:"🚂", tags:["family"], desc:"蒸気機関車で西部開拓時代のアメリカを旅する癒やし系ライド。", dur:"約20分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/154/", dpa:0, pp:0, imgUrl:W+"f/fe/Western_River_Railroad_Entrance.jpg/500px-Western_River_Railroad_Entrance.jpg" },
+    { id:"l06", name:"スイスファミリー・ツリーハウス", area:"アドベンチャーランド", emoji:"🌴", tags:["family"], desc:"映画の大樹の上の家を探険するウォークスルー型。", dur:"自由", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/155/", dpa:0, pp:0, imgUrl:W+"e/e3/Swiss_Family_Treehouse.jpg/500px-Swiss_Family_Treehouse.jpg" },
+    { id:"l07", name:"魅惑のチキルーム", area:"アドベンチャーランド", emoji:"🦜", tags:["show"], desc:"ハワイの鳥たちとスティッチが贈る楽しいミュージカルショー。", dur:"約15分", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/156/", dpa:0, pp:0 },
+    { id:"l08", name:"シューティングギャラリー", area:"ウエスタンランド", emoji:"🎯", tags:["family"], desc:"西部劇の世界でガンマンになりきるシューティングゲーム。", dur:"自由", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/157/", dpa:0, pp:0 },
+    { id:"l09", name:"カントリーベア・シアター", area:"ウエスタンランド", emoji:"🐻", tags:["show","family"], desc:"クマたちが歌って踊るカントリーミュージックのシアターショー。", dur:"約18分", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/158/", dpa:0, pp:0, imgUrl:W+"a/aa/TDL_Country_Bear_Theater.jpg/500px-TDL_Country_Bear_Theater.jpg" },
+    { id:"l10", name:"蒸気船マークトウェイン号", area:"ウエスタンランド", emoji:"⛴️", tags:["family"], desc:"大きな外輪船でアメリカ河をゆったりクルーズ。", dur:"約14分", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/159/", dpa:0, pp:0, imgUrl:W+"7/7b/Mark_Twain_Riverboat_TDL.JPG/500px-Mark_Twain_Riverboat_TDL.JPG" },
+    { id:"l11", name:"トムソーヤ島いかだ", area:"ウエスタンランド", emoji:"🏝️", tags:["family"], desc:"いかだでトムソーヤ島へ渡り、洞窟や吊り橋などを自由に探険。", dur:"自由", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/161/", dpa:0, pp:0 },
+    { id:"l12", name:"ビッグサンダー・マウンテン", area:"ウエスタンランド", emoji:"🏔️", tags:["thrill","popular"], desc:"廃坑の中を猛スピードで疾走する鉱山列車。", dur:"約3分30秒", height:"なし", thrill:"★★★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/160/", dpa:0, pp:1, imgUrl:W+"e/e9/Big_Thunder_Mountain_Railroad_at_Tokyo_Disneyland.jpg/500px-Big_Thunder_Mountain_Railroad_at_Tokyo_Disneyland.jpg" },
+    { id:"l13", name:"スプラッシュ・マウンテン", area:"クリッターカントリー", emoji:"💦", tags:["thrill","popular"], desc:"丸太舟で川下り。落差16mの大滝を一気に落下。ずぶ濡れ必至！", dur:"約11分", height:"なし", thrill:"★★★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/162/", dpa:2, pp:0, imgUrl:W+"c/c8/Splash_Mountain%2C_Tokyo_Disneyland_%289409908130%29.jpg/500px-Splash_Mountain%2C_Tokyo_Disneyland_%289409908130%29.jpg" },
+    { id:"l14", name:"ビーバーブラザーズのカヌー探険", area:"クリッターカントリー", emoji:"🛶", tags:["family"], desc:"自分たちでパドルをこぐカヌーで川沿いを探険。参加型ライド。", dur:"約10分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/163/", dpa:0, pp:0 },
+    { id:"l15", name:"アリスのティーパーティー", area:"ファンタジーランド", emoji:"🍵", tags:["family"], desc:"ふしぎの国のティーカップに乗ってくるくる回る。", dur:"約1分30秒", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/173/", dpa:0, pp:0, imgUrl:W+"b/b2/Alice%27s_Tea_Party.JPG/500px-Alice%27s_Tea_Party.JPG" },
+    { id:"l16", name:"イッツ・ア・スモールワールド", area:"ファンタジーランド", emoji:"🌍", tags:["family"], desc:"世界中の子どもたちが歌い踊るボートクルーズ。", dur:"約15分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/172/", dpa:0, pp:0, imgUrl:W+"0/02/It%27s_a_Small_World%2C_Tokyo_Disneyland_%289407124751%29.jpg/500px-It%27s_a_Small_World%2C_Tokyo_Disneyland_%289407124751%29.jpg" },
+    { id:"l17", name:"キャッスルカルーセル", area:"ファンタジーランド", emoji:"🎠", tags:["family"], desc:"シンデレラ城の近くの美しい白馬72頭の回転木馬。", dur:"約2分", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/170/", dpa:0, pp:0, imgUrl:W+"8/83/Cinderella%27s_Golden_Carrousel_TDL.JPG/500px-Cinderella%27s_Golden_Carrousel_TDL.JPG" },
+    { id:"l18", name:"白雪姫と七人のこびと", area:"ファンタジーランド", emoji:"🍎", tags:["family"], desc:"白雪姫の物語をたどるダークライド。", dur:"約2分30秒", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/165/", dpa:0, pp:0, imgUrl:W+"2/28/Snow_White%27s_Adventures_%28Tokyo_Disneyland%29_1.jpg/500px-Snow_White%27s_Adventures_%28Tokyo_Disneyland%29_1.jpg" },
+    { id:"l19", name:"シンデレラのフェアリーテイル・ホール", area:"ファンタジーランド", emoji:"👑", tags:["family"], desc:"シンデレラ城の内部を探索するウォークスルー型。", dur:"自由", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/166/", dpa:0, pp:0 },
+    { id:"l20", name:"空飛ぶダンボ", area:"ファンタジーランド", emoji:"🐘", tags:["family"], desc:"ダンボの耳を羽ばたかせて空を飛ぶ定番回転ライド。", dur:"約2分", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/169/", dpa:0, pp:0, imgUrl:W+"4/4f/Dumbo_the_Flying_Elephant_TDL.JPG/500px-Dumbo_the_Flying_Elephant_TDL.JPG" },
+    { id:"l21", name:'美女と野獣"魔法のものがたり"', area:"ファンタジーランド", emoji:"🌹", tags:["family","popular"], desc:"ベルとビーストの物語を世界最大級のライドシステムで体験。", dur:"約5分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/197/", dpa:3, pp:0, imgUrl:W+"b/b7/Tokyo_Disneyland_%28Oct_2020%29_6.jpg/500px-Tokyo_Disneyland_%28Oct_2020%29_6.jpg" },
+    { id:"l22", name:"ピーターパン空の旅", area:"ファンタジーランド", emoji:"🧚", tags:["family"], desc:"帆船でネバーランドへ飛び立つ幻想的なフライングライド。", dur:"約2分30秒", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/164/", dpa:0, pp:0, imgUrl:W+"b/bb/TDL_Peter_Pan%27s_Flight.jpg/500px-TDL_Peter_Pan%27s_Flight.jpg" },
+    { id:"l23", name:"ピノキオの冒険旅行", area:"ファンタジーランド", emoji:"🎭", tags:["family"], desc:"トロッコに乗ってピノキオの冒険の旅をたどるダークライド。", dur:"約3分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/168/", dpa:0, pp:0, imgUrl:W+"3/30/Pinocchio%27s_Daring_Journey_%28Tokyo_Disneyland%29_1.jpg/500px-Pinocchio%27s_Daring_Journey_%28Tokyo_Disneyland%29_1.jpg" },
+    { id:"l24", name:"プーさんのハニーハント", area:"ファンタジーランド", emoji:"🍯", tags:["family","popular"], desc:"くまのプーさんの夢の世界をハニーポットに乗って冒険。", dur:"約4分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/174/", dpa:0, pp:1, imgUrl:W+"f/fb/Pooh%27s_Hunny_Hunt_1.jpg/500px-Pooh%27s_Hunny_Hunt_1.jpg" },
+    { id:"l25", name:"ホーンテッドマンション", area:"ファンタジーランド", emoji:"👻", tags:["family"], desc:"999人の陽気な幽霊が住む屋敷を探索するダークライド。", dur:"約9分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/171/", dpa:0, pp:1, imgUrl:W+"f/fa/Haunted_Mansion_%28Tokyo_Disneyland%29_1.jpg/500px-Haunted_Mansion_%28Tokyo_Disneyland%29_1.jpg" },
+    { id:"l26", name:"ミッキーのフィルハーマジック", area:"ファンタジーランド", emoji:"🎵", tags:["show","family"], desc:"ミッキーが指揮するオーケストラで映画の世界へ飛び込む3Dシアター。", dur:"約18分", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/167/", dpa:0, pp:0, imgUrl:W+"2/2a/Mickey%27s_PhilharMagic_TDL.JPG/500px-Mickey%27s_PhilharMagic_TDL.JPG" },
+    { id:"l27", name:"ガジェットのゴーコースター", area:"トゥーンタウン", emoji:"🎢", tags:["family"], desc:"天才発明家ガジェットが作ったコースター。", dur:"約2分", height:"なし", thrill:"★★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/179/", dpa:0, pp:0, imgUrl:W+"4/4c/Gadget%27s_Go_Coaster_-_Tokyo_Disneyland.jpg/500px-Gadget%27s_Go_Coaster_-_Tokyo_Disneyland.jpg" },
+    { id:"l28", name:"グーフィーのペイント＆プレイハウス", area:"トゥーンタウン", emoji:"🎨", tags:["family"], desc:"グーフィーの部屋でペンキを使ったユニークな模様替えを体験。", dur:"自由", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/178/", dpa:0, pp:0 },
+    { id:"l29", name:"チップとデールのツリーハウス", area:"トゥーンタウン", emoji:"🐿️", tags:["family"], desc:"チップとデールが暮らすカシの木の家を見学できるウォークスルー型。", dur:"自由", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/181/", dpa:0, pp:0 },
+    { id:"l30", name:"ドナルドのボート", area:"トゥーンタウン", emoji:"⛵", tags:["family"], desc:"ドナルドのボートの中を自由に探険できるプレイエリア。", dur:"自由", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/180/", dpa:0, pp:0 },
+    { id:"l31", name:"ミニーの家", area:"トゥーンタウン", emoji:"🏠", tags:["family"], desc:"おしゃれなミニーの家を見学するウォークスルー型。", dur:"自由", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/176/", dpa:0, pp:0 },
+    { id:"l32", name:"ロジャーラビットのカートゥーンスピン", area:"トゥーンタウン", emoji:"🐰", tags:["family"], desc:"スピンするイエローキャブに乗ってトゥーンタウンを大冒険。", dur:"約3分30秒", height:"なし", thrill:"★★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/175/", dpa:0, pp:0, imgUrl:W+"8/89/Roger_Rabbit%27s_Car_Toon_Spin_TDL.JPG/500px-Roger_Rabbit%27s_Car_Toon_Spin_TDL.JPG" },
+    { id:"l33", name:"ミッキーの家とミート・ミッキー", area:"トゥーンタウン", emoji:"🐭", tags:["family","popular"], desc:"ミッキーの家を巡り、スタジオでミッキーと写真撮影ができる。", dur:"約1分30秒", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/177/", dpa:0, pp:0, imgUrl:W+"5/5d/Tokyo_Disneyland_Mickey%27s_House_and_Meet_Mickey_%2853442230235%29.jpg/500px-Tokyo_Disneyland_Mickey%27s_House_and_Meet_Mickey_%2853442230235%29.jpg" },
+    { id:"l35", name:"スター・ツアーズ", area:"トゥモローランド", emoji:"⭐", tags:["family"], desc:"スター・ウォーズの世界で宇宙旅行へ！384通りのストーリーがある3Dライド。", dur:"約5分", height:"102cm以上", thrill:"★★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/183/", dpa:0, pp:1, imgUrl:W+"2/2d/Star_Tours_%E2%80%93_The_Adventures_Continue_%28Tokyo_Disneyland%29_1.jpg/500px-Star_Tours_%E2%80%93_The_Adventures_Continue_%28Tokyo_Disneyland%29_1.jpg" },
+    { id:"l36", name:"スティッチ・エンカウンター", area:"トゥモローランド", emoji:"👽", tags:["show","family"], desc:"スティッチとリアルタイムで会話できるインタラクティブシアター。", dur:"約20分", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/195/", dpa:0, pp:0 },
+    { id:"l37", name:"ベイマックスのハッピーライド", area:"トゥモローランド", emoji:"🤖", tags:["family"], desc:"ベイマックスと一緒に楽しいダンスライド！", dur:"約4分", height:"なし", thrill:"★★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/196/", dpa:2, pp:0, imgUrl:W+"f/fa/Tokyo_Disneyland_The_Happy_Ride_with_Baymax_%2853441939663%29.jpg/500px-Tokyo_Disneyland_The_Happy_Ride_with_Baymax_%2853441939663%29.jpg" },
+    { id:"l38", name:'モンスターズ・インク"ライド＆ゴーシーク！"', area:"トゥモローランド", emoji:"👁️", tags:["family"], desc:"懐中電灯でモンスターを照らして得点を競う。", dur:"約5分", height:"なし", thrill:"★★", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/189/", dpa:0, pp:1, imgUrl:W+"a/a1/Monsters%2C_Inc._Ride_%26_Go_Seek_2.jpg/500px-Monsters%2C_Inc._Ride_%26_Go_Seek_2.jpg" },
+    { id:"l39", name:"トゥーンパーク", area:"トゥーンタウン", emoji:"🌳", tags:["family"], desc:"小さな子どもも楽しめるプレイエリア。", dur:"自由", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/attraction/detail/194/", dpa:0, pp:0 },
+    { id:"l40", name:"ジャンボリミッキー！レッツ・ダンス！", area:"アドベンチャーランド", emoji:"🕺", tags:["show","popular"], desc:"ミッキーと仲間たちと一緒に踊るダンスショー。シアターオーリンズで開催。エントリー制。", dur:"約15分", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tdl/show/detail/985/", dpa:0, pp:0 },
+  ],
+  sea: [
+    { id:"s01", name:"ソアリン：ファンタスティック・フライト", area:"メディテレーニアンハーバー", emoji:"🦅", tags:["family","popular"], desc:"世界の絶景を空中飛行体験。香り・風・映像が融合した没入感最高のライド。", dur:"約5分", height:"102cm以上", thrill:"★★", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/219/", dpa:3, pp:0 },
+    { id:"s02", name:"ヴェネツィアン・ゴンドラ", area:"メディテレーニアンハーバー", emoji:"🚢", tags:["family"], desc:"ゴンドリエーレの歌声を楽しみながら港をロマンティックにクルーズ。", dur:"約11分", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/230/", dpa:0, pp:0, imgUrl:W+"d/d4/Tokyo_DisneySea_-_Venice.jpg/500px-Tokyo_DisneySea_-_Venice.jpg" },
+    { id:"s03", name:"フォートレス・エクスプロレーション", area:"メディテレーニアンハーバー", emoji:"⚓", tags:["family"], desc:"大航海時代の要塞を自由に探険するウォークスルー型。", dur:"自由", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/244/", dpa:0, pp:0 },
+    { id:"s04", name:"タワー・オブ・テラー", area:"アメリカンウォーターフロント", emoji:"🏨", tags:["thrill","popular"], desc:"呪われたホテルから自由落下！絶叫マシン。", dur:"約5分", height:"102cm以上", thrill:"★★★", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/243/", dpa:2, pp:0, imgUrl:W+"e/e1/Tower_of_Terror_TDS.JPG/500px-Tower_of_Terror_TDS.JPG" },
+    { id:"s05", name:"トイ・ストーリー・マニア！", area:"アメリカンウォーターフロント", emoji:"🎠", tags:["family","popular"], desc:"バズやウッディとシューティングゲーム！", dur:"約7分", height:"なし", thrill:"★★", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/218/", dpa:2, pp:0, imgUrl:W+"9/9b/Toy_Story_Mania_%28Tokyo_DisneySea%29_1.jpg/500px-Toy_Story_Mania_%28Tokyo_DisneySea%29_1.jpg" },
+    { id:"s06", name:"タートル・トーク", area:"アメリカンウォーターフロント", emoji:"🐢", tags:["show","family"], desc:"ウミガメ・クラッシュとリアルタイムで会話できる不思議なシアター。", dur:"約20分", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/246/", dpa:0, pp:1 },
+    { id:"s06b", name:"ビッグバンドビート～ア・スペシャルトリート～", area:"アメリカンウォーターフロント", emoji:"🎺", tags:["show","popular"], desc:"1930年代のビッグバンドサウンドでミッキーたちが贈る本格ミュージカルショー。エントリー制。", dur:"約30分", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tds/show/", dpa:0, pp:0 },
+    { id:"s07", name:"ニモ＆フレンズ・シーライダー", area:"ポートディスカバリー", emoji:"🐠", tags:["family"], desc:"小さな潜水艦でニモたちと海中大冒険。", dur:"約5分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/247/", dpa:0, pp:1, imgUrl:W+"5/56/Nemo_%26_Friends_SeaRider_1.jpg/500px-Nemo_%26_Friends_SeaRider_1.jpg" },
+    { id:"s08", name:"アクアトピア", area:"ポートディスカバリー", emoji:"🌀", tags:["family"], desc:"水面を縦横無尽に動き回るユニークなライド。", dur:"約5分", height:"なし", thrill:"★★", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/234/", dpa:0, pp:1, imgUrl:W+"a/ad/Aquatopia_1.jpg/500px-Aquatopia_1.jpg" },
+    { id:"s09", name:"インディ・ジョーンズ・アドベンチャー", area:"ロストリバーデルタ", emoji:"🗿", tags:["thrill","popular"], desc:"ジープで遺跡を突き進む大人気ライド。", dur:"約5分", height:"117cm以上", thrill:"★★★", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/222/", dpa:0, pp:1, imgUrl:W+"c/cf/Raging_Spirits_%28Tokyo_DisneySea%29_Nov_2019.jpg/500px-Raging_Spirits_%28Tokyo_DisneySea%29_Nov_2019.jpg" },
+    { id:"s10", name:"レイジングスピリッツ", area:"ロストリバーデルタ", emoji:"🌊", tags:["thrill"], desc:"360度ループコースター。火と水の中を猛スピードで！", dur:"約3分", height:"117cm以上", thrill:"★★★", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/242/", dpa:0, pp:1, imgUrl:W+"c/cf/Raging_Spirits_%28Tokyo_DisneySea%29_Nov_2019.jpg/500px-Raging_Spirits_%28Tokyo_DisneySea%29_Nov_2019.jpg" },
+    { id:"s11", name:"シンドバッド・ストーリーブック・ヴォヤッジ", area:"アラビアンコースト", emoji:"🌙", tags:["family"], desc:"7つの海を冒険するボートライド。テーマ曲が心に沁みる癒やし系の大人気ライド。", dur:"約13分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/235/", dpa:0, pp:0, imgUrl:W+"9/9c/Sindbad%27s_Storybook_Voyage.jpg/500px-Sindbad%27s_Storybook_Voyage.jpg" },
+    { id:"s12", name:"マジックランプシアター", area:"アラビアンコースト", emoji:"🪔", tags:["show","family"], desc:"アラジンとジーニーが贈る3Dシアター。", dur:"約20分", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/226/", dpa:0, pp:1 },
+    { id:"s13", name:"キャラバンカルーセル", area:"アラビアンコースト", emoji:"🎡", tags:["family"], desc:"アラビアンナイトの世界観を持つ2階建て回転木馬。", dur:"約2分", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/236/", dpa:0, pp:0, imgUrl:W+"f/fc/Tokyo_DisneySea_Arabian_Coast_%28Dec_2019%29.jpg/500px-Tokyo_DisneySea_Arabian_Coast_%28Dec_2019%29.jpg" },
+    { id:"s14", name:"ジャスミンのフライングカーペット", area:"アラビアンコースト", emoji:"✨", tags:["family"], desc:"魔法の絨毯に乗ってアラビアンコーストを空中散歩。", dur:"約2分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/220/", dpa:0, pp:0, imgUrl:W+"e/e5/Tokyo_DisneySea_The_Magic_Carpets_of_Aladdin_201306.jpg/500px-Tokyo_DisneySea_The_Magic_Carpets_of_Aladdin_201306.jpg" },
+    { id:"s15", name:"ジャンピン・ジェリーフィッシュ", area:"マーメイドラグーン", emoji:"🪼", tags:["family"], desc:"クラゲの傘に乗って海底世界をふわふわ上下する屋内型タワーライド。", dur:"約2分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/239/", dpa:0, pp:0 },
+    { id:"s16", name:"ブローフィッシュ・バルーンレース", area:"マーメイドラグーン", emoji:"🐡", tags:["family"], desc:"フグのバルーンに乗って海底を回転しながら周遊。", dur:"約2分", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/240/", dpa:0, pp:0 },
+    { id:"s18", name:"センター・オブ・ジ・アース", area:"ミステリアスアイランド", emoji:"🌋", tags:["thrill","popular"], desc:"神秘の地底世界を探検。絶叫必至のシーを代表する名アトラクション。", dur:"約5分", height:"117cm以上", thrill:"★★★", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/223/", dpa:2, pp:0, imgUrl:W+"2/2a/Journey_to_the_Center_of_the_Earth_vehicule_TDS.JPG/500px-Journey_to_the_Center_of_the_Earth_vehicule_TDS.JPG" },
+    { id:"s19", name:"海底2万マイル", area:"ミステリアスアイランド", emoji:"🐙", tags:["family"], desc:"潜水艦で深海の神秘を探検。", dur:"約8分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/224/", dpa:0, pp:1, imgUrl:W+"e/e7/20%2C000_Leagues_Under_the_Sea_01.jpg/500px-20%2C000_Leagues_Under_the_Sea_01.jpg" },
+    { id:"s20", name:"アナとエルサのフローズンジャーニー", area:"ファンタジースプリングス", emoji:"❄️", tags:["family","popular"], desc:"アナとエルサの物語をボートで巡る壮大なダークライド。ファンタジースプリングス最大の目玉。", dur:"約6分30秒", height:"なし", thrill:"★★", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/255/", dpa:3, pp:0 },
+    { id:"s21", name:"ラプンツェルのランタンフェスティバル", area:"ファンタジースプリングス", emoji:"🏮", tags:["family","popular"], desc:"ラプンツェルと一緒に無数のランタンが夜空に舞う幻想的なボートライド。", dur:"約5分", height:"なし", thrill:"★", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/256/", dpa:3, pp:0 },
+    { id:"s22", name:"ピーターパンのネバーランドアドベンチャー", area:"ファンタジースプリングス", emoji:"🌟", tags:["family","popular"], desc:"ゴーグルを着けて3Dの世界へ。フック船長からジョンを救う大冒険ライド。大きな動きあり。", dur:"約6分", height:"102cm以上", thrill:"★★★", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/257/", dpa:3, pp:0 },
+    { id:"s23", name:"フェアリー・ティンカーベルのビジーバギー", area:"ファンタジースプリングス", emoji:"🪄", tags:["family"], desc:"ティンカーベルが作ったバギーでピクシー・ホロウの四季を巡るほのぼのライド。", dur:"約4分", height:"なし", thrill:"なし", link:"https://www.tokyodisneyresort.jp/tds/attraction/detail/258/", dpa:0, pp:0 },
+  ],
+};
+
+const RESTAURANTS = {
+  land: [
+    // ── ワールドバザール ──
+    { id:"lr01", name:"イーストサイド・カフェ", area:"ワールドバザール", emoji:"🍝", cat:"レストラン", desc:"パスタや洋食が楽しめる明るいカフェスタイルのレストラン。", price:"¥2,000〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/300/" },
+    { id:"lr02", name:"センターストリート・コーヒーハウス", area:"ワールドバザール", emoji:"☕", cat:"レストラン", desc:"人気の洋食をそろえたアールデコ様式のおしゃれなレストラン。プライオリティ・シーティング対応。", price:"¥1,500〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/306/" },
+    { id:"lr03", name:"リフレッシュメントコーナー", area:"ワールドバザール", emoji:"🍔", cat:"フード", desc:"ハンバーガーやホットドッグが楽しめる気軽なフードスポット。", price:"¥700〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/303/" },
+    { id:"lr04", name:"れすとらん北齋", area:"ワールドバザール", emoji:"🍱", cat:"レストラン", desc:"日本の伝統料理をディズニーの世界観で楽しめる和食レストラン。", price:"¥1,500〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/313/" },
+    { id:"lr05", name:"スウィートハート・カフェ", area:"ワールドバザール", emoji:"🧁", cat:"カフェ", desc:"仲の良い夫婦が経営するベーカリーカフェ。スイーツやパンが充実。", price:"¥600〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/316/" },
+    { id:"lr06", name:"グレートアメリカン・ワッフルカンパニー", area:"ワールドバザール", emoji:"🧇", cat:"カフェ", desc:"ワッフルが自慢のアメリカンカフェ。モバイルオーダー対応。", price:"¥500〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/304/" },
+    { id:"lr07", name:"アイスクリームコーン", area:"ワールドバザール", emoji:"🍦", cat:"スイーツ", desc:"シンデレラ城を望む白とピンクのかわいいアイスクリームショップ。", price:"¥500〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/317/" },
+    // ── アドベンチャーランド ──
+    { id:"lr08", name:"クリスタルパレス・レストラン", area:"アドベンチャーランド", emoji:"🍽️", cat:"レストラン", desc:"プーさんたちとのバッフェが人気。優雅なガラス張りの建物。", price:"¥3,000〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/323/" },
+    { id:"lr09", name:"ブルーバイユー・レストラン", area:"アドベンチャーランド", emoji:"🥘", cat:"レストラン", desc:"カリブの海賊のライド沿いのロマンチックなレストラン。夜景が美しい。", price:"¥4,000〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/318/" },
+    { id:"lr10", name:"ポリネシアンテラス・レストラン", area:"アドベンチャーランド", emoji:"🌺", cat:"レストラン", desc:"ポリネシアンフードを楽しむレストラン。キャラクターダイニングも人気。", price:"¥2,500〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/326/" },
+    { id:"lr11", name:"カフェ・オーリンズ", area:"アドベンチャーランド", emoji:"🫕", cat:"カフェ", desc:"ニューオーリンズ風のケイジャン料理が楽しめるカジュアルカフェ。", price:"¥1,000〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/321/" },
+    { id:"lr12", name:"ロイヤルストリート・ベランダ", area:"アドベンチャーランド", emoji:"🍲", cat:"カフェ", desc:"クラムチャウダーやガンボが楽しめるニューオーリンズ風スタンド。", price:"¥700〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/322/" },
+    { id:"lr13", name:"スキッパーズ・ギャレー", area:"アドベンチャーランド", emoji:"🍗", cat:"フード", desc:"ジャングルクルーズ近くの船乗り風フードスタンド。チキンが人気。", price:"¥1,000〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/331/" },
+    { id:"lr14", name:"チャイナボイジャー", area:"アドベンチャーランド", emoji:"🥡", cat:"フード", desc:"中国風フードが楽しめるアジアンテイストのフードスタンド。", price:"¥900〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/332/" },
+    { id:"lr15", name:"ボイラールーム・バイツ", area:"アドベンチャーランド", emoji:"🌭", cat:"フード", desc:"ホットドッグや軽食が楽しめるカジュアルなフードスタンド。", price:"¥600〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/333/" },
+    // ── ウエスタンランド ──
+    { id:"lr16", name:"プラザパビリオン・レストラン", area:"ウエスタンランド", emoji:"🏟️", cat:"フード", desc:"チキンやポテトなど定番フードが揃う大型フードコート。テラス席もあり開放的。", price:"¥900〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/335/" },
+    { id:"lr17", name:"ハングリーベア・レストラン", area:"ウエスタンランド", emoji:"🐻", cat:"レストラン", desc:"カレーやプレート料理が充実した西部劇テーマの大型レストラン。", price:"¥1,200〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/338/" },
+    { id:"lr18", name:"ペコスビル・カフェ", area:"ウエスタンランド", emoji:"🌮", cat:"カフェ", desc:"タコスやナチョスが楽しめるテキサス風カフェ。", price:"¥1,000〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/337/" },
+    { id:"lr19", name:"カウボーイ・クックハウス", area:"ウエスタンランド", emoji:"🥩", cat:"フード", desc:"BBQスタイルのアメリカン料理が楽しめるウエスタンフードスタンド。", price:"¥1,500〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/499/" },
+    { id:"lr20", name:"ザ・ダイヤモンドホースシュー", area:"ウエスタンランド", emoji:"🎪", cat:"レストラン", desc:"ショーを楽しみながら食事ができるウエスタンスタイルのショーレストラン。", price:"¥2,500〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/336/" },
+    { id:"lr21", name:"キャンプ・ウッドチャック・キッチン", area:"ウエスタンランド", emoji:"🏕️", cat:"カフェ", desc:"チップとデールのアウトドアをテーマにしたカジュアルなカフェ。", price:"¥600〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/339/" },
+    // ── クリッターカントリー ──
+    { id:"lr22", name:"グランマ・サラのキッチン", area:"クリッターカントリー", emoji:"🥗", cat:"フード", desc:"南部料理風のカジュアルフード。フレンドリーな雰囲気。", price:"¥1,200〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/344/" },
+    { id:"lr23", name:"ラケッティのラクーンサルーン", area:"クリッターカントリー", emoji:"🦝", cat:"フード", desc:"アライグマのラケッティのサルーン。ドリンクや軽食が楽しめる。", price:"¥600〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/345/" },
+    // ── ファンタジーランド ──
+    { id:"lr24", name:"クイーン・オブ・ハートのバンケットホール", area:"ファンタジーランド", emoji:"🃏", cat:"レストラン", desc:"ふしぎの国のアリスの世界観で食事が楽しめる大型レストラン。", price:"¥1,500〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/349/" },
+    { id:"lr25", name:"キャプテンフックス・ギャレー", area:"ファンタジーランド", emoji:"🏴‍☠️", cat:"フード", desc:"ピーターパンの世界の海賊をテーマにしたカジュアルフードスタンド。", price:"¥900〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/346/" },
+    { id:"lr26", name:"ラ・タベルヌ・ド・ガストン", area:"ファンタジーランド", emoji:"🥂", cat:"カフェ", desc:"美女と野獣のガストンをテーマにしたヨーロッパ風カフェ。", price:"¥1,000〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/290/" },
+    { id:"lr27", name:"ル・フウズ", area:"ファンタジーランド", emoji:"🍖", cat:"フード", desc:"ガストンの相棒ルフウのフードスタンド。チキンレッグが名物。", price:"¥700〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/291/" },
+    { id:"lr28", name:"トルバドールタバン", area:"ファンタジーランド", emoji:"🎸", cat:"フード", desc:"吟遊詩人がいるカジュアルなフードスタンド。プレート料理が楽しめる。", price:"¥1,000〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/347/" },
+    // ── トゥーンタウン ──
+    { id:"lr29", name:"ヒューイ・デューイ・ルーイのグッドタイム・カフェ", area:"トゥーンタウン", emoji:"🦆", cat:"カフェ", desc:"ドナルドの甥たちがいるポップなカフェ。軽食やドリンクが楽しめる。", price:"¥600〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/362/" },
+    { id:"lr30", name:"ミッキーのトレーラー", area:"トゥーンタウン", emoji:"🐭", cat:"フード", desc:"ミッキーのトレーラーハウスをテーマにしたユニークなフードスタンド。", price:"¥700〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/363/" },
+    // ── トゥモローランド ──
+    { id:"lr31", name:"トゥモローランド・テラス", area:"トゥモローランド", emoji:"🚀", cat:"フード", desc:"宇宙をテーマにしたハンバーガーやフライドチキンが楽しめるフードコート。", price:"¥1,000〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/357/" },
+    { id:"lr32", name:"パン・ギャラクティック・ピザ・ポート", area:"トゥモローランド", emoji:"🍕", cat:"フード", desc:"未来的なインテリアのピザレストラン。宇宙ステーション風の雰囲気。", price:"¥1,500〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/353/" },
+    { id:"lr33", name:"プラズマ・レイズ・ダイナー", area:"トゥモローランド", emoji:"⚡", cat:"フード", desc:"未来的なファストフードダイナー。スナックやドリンクが揃う。", price:"¥700〜", link:"https://www.tokyodisneyresort.jp/tdl/restaurant/detail/352/" },
+  ],
+  sea: [
+    // ── メディテレーニアンハーバー ──
+    { id:"sr01", name:"マゼランズ", area:"メディテレーニアンハーバー", emoji:"🍷", cat:"レストラン", desc:"優雅な航海士の邸宅をイメージした高級レストラン。コース料理が楽しめる。", price:"¥5,000〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/412/" },
+    { id:"sr02", name:"リストランテ・ディ・カナレット", area:"メディテレーニアンハーバー", emoji:"🍝", cat:"レストラン", desc:"本格イタリアン。パスタやリゾットが人気。港の雰囲気も楽しめる。", price:"¥2,500〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/408/" },
+    { id:"sr03", name:"カフェ・ポルトフィーノ", area:"メディテレーニアンハーバー", emoji:"🫖", cat:"カフェ", desc:"地中海の港をテーマにしたカフェ。パスタやスナックが楽しめる。", price:"¥1,500〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/400/" },
+    { id:"sr04", name:"ザンビーニ・ブラザーズ・リストランテ", area:"メディテレーニアンハーバー", emoji:"🍕", cat:"フード", desc:"ピザやパスタが楽しめるカジュアルなイタリアンフードコート。", price:"¥1,200〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/403/" },
+    { id:"sr05", name:"マンマ・ビスコッティーズ・ベーカリー", area:"メディテレーニアンハーバー", emoji:"🥐", cat:"カフェ", desc:"手作りパンとスイーツが楽しめる地中海風ベーカリーカフェ。", price:"¥500〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/401/" },
+    // ── アメリカンウォーターフロント ──
+    { id:"sr06", name:"S.S.コロンビア・ダイニングルーム", area:"アメリカンウォーターフロント", emoji:"🚢", cat:"レストラン", desc:"豪華客船S.S.コロンビア号の一等ダイニングルーム。フランス料理のフルコース。", price:"¥5,000〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/425/" },
+    { id:"sr07", name:"テディ・ルーズヴェルト・ラウンジ", area:"アメリカンウォーターフロント", emoji:"🥃", cat:"レストラン", desc:"S.S.コロンビア号内の社交ラウンジ。ドリンクと軽食でゆったり過ごせる。", price:"¥1,500〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/429/" },
+    { id:"sr08", name:"レストラン櫻", area:"アメリカンウォーターフロント", emoji:"🌸", cat:"レストラン", desc:"1920年代の横浜をイメージした和食レストラン。コース料理が楽しめる。", price:"¥2,500〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/432/" },
+    { id:"sr09", name:"ケープコッド・クックオフ", area:"アメリカンウォーターフロント", emoji:"🦞", cat:"フード", desc:"ニューイングランド風シーフードが楽しめるフードコート。クラムチャウダーが人気。", price:"¥1,000〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/446/" },
+    { id:"sr10", name:"ニューヨーク・デリ", area:"アメリカンウォーターフロント", emoji:"🥪", cat:"フード", desc:"ニューヨーク風デリ。サンドウィッチやスープが充実している。", price:"¥1,000〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/422/" },
+    { id:"sr11", name:"ドックサイドダイナー", area:"アメリカンウォーターフロント", emoji:"🍔", cat:"フード", desc:"港の雰囲気あふれるアメリカンダイナー。バーガーや軽食が楽しめる。", price:"¥1,000〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/441/" },
+    { id:"sr12", name:"リバティ・ランディング・ダイナー", area:"アメリカンウォーターフロント", emoji:"🥗", cat:"フード", desc:"自由の女神広場近くのカジュアルダイナー。サンドウィッチやサラダが揃う。", price:"¥1,000〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/435/" },
+    // ── ポートディスカバリー ──
+    { id:"sr13", name:"ホライズンベイ・レストラン", area:"ポートディスカバリー", emoji:"🌊", cat:"レストラン", desc:"未来の海洋をテーマにした明るいレストラン。シーフード料理が楽しめる。", price:"¥1,500〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/451/" },
+    { id:"sr14", name:"ブリーズウェイ・バイツ", area:"ポートディスカバリー", emoji:"🌬️", cat:"フード", desc:"ポートディスカバリーのカジュアルスナックスタンド。軽食やドリンクが揃う。", price:"¥600〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/454/" },
+    // ── ロストリバーデルタ ──
+    { id:"sr15", name:"ユカタン・ベースキャンプ・グリル", area:"ロストリバーデルタ", emoji:"🥩", cat:"フード", desc:"南米の探検基地をイメージ。グリル料理が豊富で食べごたえあり。", price:"¥1,500〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/459/" },
+    { id:"sr16", name:"ミゲルズ・エルドラド・キャンティーナ", area:"ロストリバーデルタ", emoji:"🌮", cat:"レストラン", desc:"ラテンアメリカをテーマにしたメキシカンレストラン。タコスやナチョスが人気。", price:"¥1,200〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/456/" },
+    { id:"sr17", name:"トロピック・アルズ", area:"ロストリバーデルタ", emoji:"🍹", cat:"フード", desc:"ジャングル探検家の基地をイメージしたトロピカルフードスタンド。", price:"¥800〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/457/" },
+    { id:"sr18", name:"ロストリバークックハウス", area:"ロストリバーデルタ", emoji:"🔥", cat:"フード", desc:"探検家キャンプをテーマにしたBBQスタイルのフードスタンド。", price:"¥1,000〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/461/" },
+    // ── ファンタジースプリングス ──
+    { id:"sr19", name:"アレンデール・ロイヤルバンケット", area:"ファンタジースプリングス", emoji:"❄️", cat:"レストラン", desc:"アナと雪の女王のアレンデール城の晩餐会をテーマにした豪華レストラン。", price:"¥3,000〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/409/" },
+    { id:"sr20", name:"スナグリーダックリング", area:"ファンタジースプリングス", emoji:"🦆", cat:"フード", desc:"ラプンツェルの世界の酒場風フードスタンド。ユニークなフードが楽しめる。", price:"¥1,200〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/413/" },
+    { id:"sr21", name:"オーケンのオーケーフード", area:"ファンタジースプリングス", emoji:"🏪", cat:"フード", desc:"オーケンのトレーディングポストをテーマにした北欧スタイルのフードスタンド。", price:"¥800〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/410/" },
+    { id:"sr22", name:"ルックアウト・クックアウト", area:"ファンタジースプリングス", emoji:"🏹", cat:"フード", desc:"ブレイブのメリダの世界をイメージしたハイランドスタイルのBBQスタンド。", price:"¥1,200〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/414/" },
+    // ── アラビアンコースト ──
+    { id:"sr23", name:"カスバ・フードコート", area:"アラビアンコースト", emoji:"🧆", cat:"フード", desc:"アラビアンコーストのフードコート。多彩なアラビアン料理が楽しめる。", price:"¥900〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/463/" },
+    { id:"sr24", name:"サルタンズ・オアシス", area:"アラビアンコースト", emoji:"🏺", cat:"フード", desc:"砂漠のオアシスをイメージしたアラビアン料理のフードスタンド。", price:"¥800〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/464/" },
+    // ── マーメイドラグーン ──
+    { id:"sr25", name:"セバスチャンのカリプソキッチン", area:"マーメイドラグーン", emoji:"🦀", cat:"レストラン", desc:"アリエルの友達セバスチャンのカリビアンフードレストラン。", price:"¥1,000〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/468/" },
+    // ── ミステリアスアイランド ──
+    { id:"sr26", name:"ヴォルケイニア・レストラン", area:"ミステリアスアイランド", emoji:"🌋", cat:"レストラン", desc:"ネモ船長の海底基地をテーマにした神秘的なレストラン。海底の雰囲気で食事が楽しめる。", price:"¥1,500〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/418/" },
+    { id:"sr27", name:"ノーチラスギャレー", area:"ミステリアスアイランド", emoji:"🔭", cat:"フード", desc:"ノーチラス号の厨房をテーマにしたミステリアスなスナックスタンド。", price:"¥700〜", link:"https://www.tokyodisneyresort.jp/tds/restaurant/detail/421/" },
+  ],
+};
+
+const HOTELS = {
+  land: [
+    { id:"h01", name:"東京ディズニーランドホテル", type:"ディズニーオフィシャルホテル", emoji:"🏰", price:"¥60,000〜/泊", desc:"ランドのゲート正面に位置するビクトリアン調の最高級ホテル。バケーションパッケージ対象。", link:"https://www.tokyodisneyresort.jp/hotel/tdh.html" },
+    { id:"h03", name:"ディズニーアンバサダーホテル", type:"ディズニーオフィシャルホテル", emoji:"✨", price:"¥50,000〜/泊", desc:"アメリカン・ポップアートの世界観。キャラクターダイニングやルームが充実。", link:"https://www.tokyodisneyresort.jp/hotel/dah.html" },
+    { id:"h05", name:"東京ディズニーリゾート・トイ・ストーリーホテル", type:"ディズニーオフィシャルホテル", emoji:"🤠", price:"¥30,000〜/泊", desc:"トイ・ストーリーの世界観に包まれたキャラクターホテル。公式最安値帯。", link:"https://www.tokyodisneyresort.jp/hotel/tsh.html" },
+    { id:"h06", name:"ヒルトン東京ベイ", type:"オフィシャルホテル", emoji:"🛎️", price:"¥20,000〜/泊", desc:"広い客室とファミリースイートが充実。パーク直結バスでアクセス良好。", link:"https://www.tokyodisneyresort.jp/hotel/oh/hilton.html" },
+    { id:"h07", name:"シェラトン・グランデ・トーキョーベイ・ホテル", type:"オフィシャルホテル", emoji:"🌟", price:"¥20,000〜/泊", desc:"ポリネシアン・バレンシアなどユニークなルームタイプあり。大浴場が人気。", link:"https://www.tokyodisneyresort.jp/hotel/oh/sheraton.html" },
+    { id:"h08", name:"ホテルオークラ東京ベイ", type:"オフィシャルホテル", emoji:"🍃", price:"¥18,000〜/泊", desc:"落ち着いた和の雰囲気。広々とした客室でゆったりステイできる。", link:"https://www.tokyodisneyresort.jp/hotel/oh/okura.html" },
+    { id:"h09", name:"グランドニッコー東京ベイ 舞浜", type:"オフィシャルホテル", emoji:"🌸", price:"¥12,000〜/泊", desc:"コスパに優れた人気ホテル。舞浜駅から徒歩圏内でアクセス良好。", link:"https://www.tokyodisneyresort.jp/hotel/oh/grandnikko.html" },
+    { id:"h10", name:"オリエンタルホテル東京ベイ", type:"パートナーホテル", emoji:"🎭", price:"¥15,000〜/泊", desc:"舞浜駅から徒歩圏内。リーズナブルで使いやすい定番ホテル。", link:"https://www.tokyodisneyresort.jp/hotel/ph/oriental.html" },
+    { id:"h11", name:"舞浜ビューホテル", type:"オフィシャルホテル", emoji:"🌃", price:"¥14,000〜/泊", desc:"夜景が美しいホテル。カジュアルに過ごせる落ち着いた雰囲気。", link:"https://www.tokyodisneyresort.jp/hotel/oh/maihamaviewhotel.html" },
+    { id:"h12", name:"東京ベイ舞浜ホテル ファーストリゾート", type:"オフィシャルホテル", emoji:"🎪", price:"¥12,000〜/泊", desc:"ファミリーに人気のお手頃ホテル。充実した朝食バイキングが評判。", link:"https://www.tokyodisneyresort.jp/hotel/oh/firstresort.html" },
+  ],
+  sea: [
+    { id:"h02", name:"東京ディズニーシー・ホテルミラコスタ", type:"ディズニーオフィシャルホテル", emoji:"🌊", price:"¥70,000〜/泊", desc:"シーに隣接した唯一のホテル。客室からパークを一望できる唯一無二のロケーション。", link:"https://www.tokyodisneyresort.jp/hotel/dhm.html" },
+    { id:"h04", name:"東京ディズニーシー・ファンタジースプリングスホテル", type:"ディズニーオフィシャルホテル", emoji:"❄️", price:"¥80,000〜/泊", desc:"2024年6月開業の最新ホテル。ファンタジースプリングスに直結した魔法の世界観。", link:"https://www.tokyodisneyresort.jp/hotel/fsh.html" },
+    { id:"h03", name:"ディズニーアンバサダーホテル", type:"ディズニーオフィシャルホテル", emoji:"✨", price:"¥50,000〜/泊", desc:"アメリカン・ポップアートの世界観。キャラクターダイニングやルームが充実。", link:"https://www.tokyodisneyresort.jp/hotel/dah.html" },
+    { id:"h05", name:"東京ディズニーリゾート・トイ・ストーリーホテル", type:"ディズニーオフィシャルホテル", emoji:"🤠", price:"¥30,000〜/泊", desc:"トイ・ストーリーの世界観に包まれたキャラクターホテル。公式最安値帯。", link:"https://www.tokyodisneyresort.jp/hotel/tsh.html" },
+    { id:"h06", name:"ヒルトン東京ベイ", type:"オフィシャルホテル", emoji:"🛎️", price:"¥20,000〜/泊", desc:"広い客室とファミリースイートが充実。パーク直結バスでアクセス良好。", link:"https://www.tokyodisneyresort.jp/hotel/oh/hilton.html" },
+    { id:"h07", name:"シェラトン・グランデ・トーキョーベイ・ホテル", type:"オフィシャルホテル", emoji:"🌟", price:"¥20,000〜/泊", desc:"ポリネシアン・バレンシアなどユニークなルームタイプあり。大浴場が人気。", link:"https://www.tokyodisneyresort.jp/hotel/oh/sheraton.html" },
+    { id:"h08", name:"ホテルオークラ東京ベイ", type:"オフィシャルホテル", emoji:"🍃", price:"¥18,000〜/泊", desc:"落ち着いた和の雰囲気。広々とした客室でゆったりステイできる。", link:"https://www.tokyodisneyresort.jp/hotel/oh/okura.html" },
+    { id:"h09", name:"グランドニッコー東京ベイ 舞浜", type:"オフィシャルホテル", emoji:"🌸", price:"¥12,000〜/泊", desc:"コスパに優れた人気ホテル。舞浜駅から徒歩圏内でアクセス良好。", link:"https://www.tokyodisneyresort.jp/hotel/oh/grandnikko.html" },
+    { id:"h10", name:"オリエンタルホテル東京ベイ", type:"パートナーホテル", emoji:"🎭", price:"¥15,000〜/泊", desc:"舞浜駅から徒歩圏内。リーズナブルで使いやすい定番ホテル。", link:"https://www.tokyodisneyresort.jp/hotel/ph/oriental.html" },
+    { id:"h11", name:"舞浜ビューホテル", type:"オフィシャルホテル", emoji:"🌃", price:"¥14,000〜/泊", desc:"夜景が美しいホテル。カジュアルに過ごせる落ち着いた雰囲気。", link:"https://www.tokyodisneyresort.jp/hotel/oh/maihamaviewhotel.html" },
+    { id:"h12", name:"東京ベイ舞浜ホテル ファーストリゾート", type:"オフィシャルホテル", emoji:"🎪", price:"¥12,000〜/泊", desc:"ファミリーに人気のお手頃ホテル。充実した朝食バイキングが評判。", link:"https://www.tokyodisneyresort.jp/hotel/oh/firstresort.html" },
+  ],
+};
+
+// ─── Map Areas (line1/line2 for 2-line SVG labels) ────────────────────────
+const MAP_AREAS = {
+  land: [
+    // ファンタジーランド: 大きな八角形、パーク北側の中心
+    { id:"ファンタジーランド", line1:"ファンタジー", line2:"ランド", color:"#FFCCBC", textColor:"#4E342E",
+      points:"112,8 268,8 332,80 332,180 232,202 148,202 58,180 48,68", cx:190, cy:112 },
+    // クリッターカントリー: 左上の小さな三角コーナー
+    { id:"クリッターカントリー", line1:"クリッター", line2:"カントリー", color:"#43A047", textColor:"#fff",
+      points:"8,8 112,8 48,68 8,90", cx:48, cy:45 },
+    // ウエスタンランド: 左側の斜め帯
+    { id:"ウエスタンランド", line1:"ウエスタン", line2:"ランド", color:"#FFA726", textColor:"#4E342E",
+      points:"8,90 48,68 58,180 8,202", cx:32, cy:136 },
+    // アドベンチャーランド: 左下の台形
+    { id:"アドベンチャーランド", line1:"アドベンチャー", line2:"ランド", color:"#66BB6A", textColor:"#1B5E20",
+      points:"8,202 58,180 148,202 148,268 8,268", cx:76, cy:232 },
+    // ワールドバザール: 下中央の長方形（メインストリート）
+    { id:"ワールドバザール", line1:"ワールド", line2:"バザール", color:"#FFD54F", textColor:"#5D4037",
+      points:"148,202 232,202 232,268 148,268", cx:190, cy:238 },
+    // トゥーンタウン: 右上コーナーの小エリア
+    { id:"トゥーンタウン", line1:"トゥーン", line2:"タウン", color:"#EF5350", textColor:"#fff",
+      points:"268,8 372,8 372,80 332,80", cx:340, cy:45 },
+    // トゥモローランド: 右側の大きなエリア
+    { id:"トゥモローランド", line1:"トゥモロー", line2:"ランド", color:"#4DD0E1", textColor:"#004D5E",
+      points:"332,80 372,80 372,268 232,268 232,202 332,180", cx:344, cy:186 },
+  ],
+  sea: [
+    // メディテレーニアンハーバー: 中央の六角形ハーバー（水エリア）
+    { id:"メディテレーニアンハーバー", line1:"メディテレー", line2:"ニアン港", color:"#90CAF9", textColor:"#0D47A1",
+      points:"142,108 238,108 265,175 252,218 128,218 118,175", cx:192, cy:162, isWater:true },
+    // アメリカンウォーターフロント: 右上の大きなエリア
+    { id:"アメリカンウォーターフロント", line1:"アメリカン", line2:"W.F.", color:"#EF9A9A", textColor:"#7B1FA2",
+      points:"238,8 372,8 372,145 320,188 265,175 238,108", cx:312, cy:88 },
+    // ポートディスカバリー: 左上から中央上のエリア
+    { id:"ポートディスカバリー", line1:"ポート", line2:"ディスカバリー", color:"#FFF176", textColor:"#5D4037",
+      points:"8,8 238,8 238,108 142,108 118,175 8,118", cx:118, cy:72 },
+    // ロストリバーデルタ: 左側中央
+    { id:"ロストリバーデルタ", line1:"ロストリバー", line2:"デルタ", color:"#A5D6A7", textColor:"#1B5E20",
+      points:"8,118 118,175 128,218 100,258 8,248", cx:60, cy:193 },
+    // アラビアンコースト: 左下
+    { id:"アラビアンコースト", line1:"アラビアン", line2:"コースト", color:"#FFCC80", textColor:"#BF360C",
+      points:"8,248 100,258 128,218 128,308 8,308", cx:62, cy:275 },
+    // マーメイドラグーン: 下中央（室内エリア）
+    { id:"マーメイドラグーン", line1:"マーメイド", line2:"ラグーン", color:"#B3E5FC", textColor:"#01579B",
+      points:"128,218 252,218 248,308 128,308", cx:190, cy:265 },
+    // ミステリアスアイランド: 右中央（火山）
+    { id:"ミステリアスアイランド", line1:"ミステリアス", line2:"アイランド", color:"#CE93D8", textColor:"#4A148C",
+      points:"265,175 320,188 372,145 372,278 248,278 252,218", cx:322, cy:228 },
+    // ファンタジースプリングス: 右下（2024新エリア）
+    { id:"ファンタジースプリングス", line1:"ファンタジー", line2:"スプリングス", color:"#A5B4FC", textColor:"#3730A3",
+      points:"248,278 372,278 372,308 248,308", cx:310, cy:293 },
+  ],
+};
+
+// ─── Initial Data & Utils ─────────────────────────────────────────────────
+const INITIAL_DATA = {
+  park:"land",
+  users:[{id:"u1",name:"しょう"},{id:"u2",name:"あおい"}],
+  ridden:{}, want:{}, plan:{}, ratings:{},
+  notes:{}, history:{}, photos:{}, dayMemo:"", tripDate:"",
+  restaurantFavorites:{}, restaurantVisited:{},
+  hotelFavorites:{}, hotelStayed:{},
+  starRatings:{}, waitTimes:{}, timeline:{}, darkMode:false,
+  tripLogs:[],
+};
+
+function loadData() {
+  try {
+    const baked = window.BAKED_PHOTOS || {};
+    const bakedAll = window.BAKED_DATA || null;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      // localStorageが空 → bakedファイルから全データ復元
+      if (bakedAll) return { ...INITIAL_DATA, ...bakedAll, photos: { ...baked, ...(bakedAll.photos||{}) } };
+      return { ...INITIAL_DATA, photos: { ...baked } };
+    }
+    const parsed = JSON.parse(raw);
+    const photos = { ...baked, ...(parsed.photos||{}) };
+    return { ...INITIAL_DATA, ...parsed,
+      users: parsed.users || INITIAL_DATA.users,
+      notes: parsed.notes||{}, history: parsed.history||{},
+      photos,
+      restaurantFavorites: parsed.restaurantFavorites||{},
+      restaurantVisited: parsed.restaurantVisited||{},
+      hotelFavorites: parsed.hotelFavorites||{},
+      hotelStayed: parsed.hotelStayed||{},
+      starRatings: parsed.starRatings||{},
+      waitTimes: parsed.waitTimes||{},
+      timeline: parsed.timeline||{},
+      darkMode: parsed.darkMode||false,
+      tripLogs: parsed.tripLogs||[],
+      plan: parsed.plan||{},
+    };
+  } catch { return { ...INITIAL_DATA, photos: window.BAKED_PHOTOS||{} }; }
+}
+function saveData(d) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+  } catch(e) {
+    if (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014) {
+      alert('⚠️ 保存容量が不足しています。\n設定の「写真を圧縮して再保存」を実行してください。');
+    }
+  }
+}
+
+function compressImage(dataUrl, maxWidth=900, quality=0.72) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+function calcCountdown(dt) {
+  if (!dt) return null;
+  const t = new Date(); t.setHours(0,0,0,0);
+  const d = new Date(dt); d.setHours(0,0,0,0);
+  return Math.ceil((d-t)/86400000);
+}
+
+const TAG_LABELS = { family:"ファミリー", thrill:"スリル", popular:"人気", show:"ショー" };
+const USER_COLORS = [
+  {bg:"#ff6b9d",fg:"#fff"},{bg:"#ffc107",fg:"#333"},{bg:"#4caf50",fg:"#fff"},
+  {bg:"#2196f3",fg:"#fff"},{bg:"#9c27b0",fg:"#fff"},{bg:"#ff5722",fg:"#fff"},
+  {bg:"#00bcd4",fg:"#fff"},{bg:"#e91e63",fg:"#fff"},{bg:"#8bc34a",fg:"#fff"},{bg:"#607d8b",fg:"#fff"},
+];
+const TAG_COLORS = { family:"#4caf50", thrill:"#e53935", popular:"#f57c00", show:"#9c27b0" };
+
+// ─── Styles ──────────────────────────────────────────────────────────────
+const S = {
+  app:(bg)=>({ minHeight:"100vh", background:bg, fontFamily:"-apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif", paddingBottom:"72px" }),
+  parkTabBtn:(a,dark)=>({ flex:1, padding:"9px 0", border:"none", borderRadius:"9px", fontWeight:"700", fontSize:"15px", cursor:"pointer", background:a?(dark?"#374151":"#fff"):"transparent", color:a?(dark?"#f3f4f6":"#1a1a1a"):(dark?"#6b7280":"#888"), boxShadow:a?"0 1px 4px rgba(0,0,0,0.12)":"none", transition:"all 0.2s" }),
+  navBtn:(a,dark)=>({ flex:1, padding:"8px 2px 6px", border:"none", background:"transparent", color:a?"#007AFF":(dark?"#6b7280":"#8e8e93"), cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:"1px", fontSize:"8px", fontWeight:a?"600":"400", lineHeight:1.2 }),
+  chip:(a,C)=>({ background:a?"#007AFF":C.chip, color:a?"#fff":C.chipTxt, border:"none", borderRadius:"20px", padding:"6px 12px", fontSize:"12px", fontWeight:"600", cursor:"pointer", whiteSpace:"nowrap" }),
+  input:(C)=>({ width:"100%", border:`1.5px solid ${C.inBd}`, borderRadius:"10px", padding:"10px 12px", fontSize:"14px", outline:"none", fontFamily:"inherit", background:C.inBg, color:C.text }),
+  textarea:(C)=>({ width:"100%", border:`1.5px solid ${C.inBd}`, borderRadius:"10px", padding:"10px 12px", fontSize:"13px", outline:"none", fontFamily:"inherit", resize:"none", minHeight:"90px", background:C.inBg, color:C.text }),
+  tag:(c)=>({ display:"inline-block", padding:"2px 6px", borderRadius:"10px", fontSize:"10px", fontWeight:"600", background:c, color:"#fff", marginRight:"3px", marginBottom:"2px" }),
+  pillUser:(bg,fg,on)=>({ display:"inline-flex", alignItems:"center", gap:"2px", background:on?bg:"#e0e0e0", color:on?fg:"#aaa", borderRadius:"10px", padding:"2px 7px", fontSize:"10px", fontWeight:"600", marginRight:"3px" }),
+};
+
+// ─── ImgOrEmoji ──────────────────────────────────────────────────────────────
+function ImgOrEmoji({ imgUrl, emoji, cardMode }) {
+  const [err, setErr] = useState(false);
+  if (imgUrl && !err) {
+    return (
+      <div style={{height:cardMode?"80px":"180px",overflow:"hidden",borderRadius:cardMode?"10px 10px 0 0":"0"}}>
+        <img src={imgUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}} onError={()=>setErr(true)}/>
+      </div>
+    );
+  }
+  return <div style={{fontSize:cardMode?"36px":"70px",textAlign:"center",padding:cardMode?"12px 8px 6px":"8px 0 12px",lineHeight:1}}>{emoji}</div>;
+}
+
+// ─── AttrModal ─────────────────────────────────────────────────────────────
+function AttrModal({ attr, data, onClose, onChange }) {
+  const C = useC();
+  const users = data.users || INITIAL_DATA.users;
+  const id = attr.id;
+  const ridden = data.ridden[id]||{};
+  const want = data.want[id]||{};
+  const note = (data.notes||{})[id]||"";
+  const history = (data.history||{})[id]||[];
+  const photo = (data.photos||{})[id]||null;
+  const [newVisit, setNewVisit] = useState("");
+  const fileInputRef = useRef(null);
+  const allRidden = users.every(u=>ridden[u.id]);
+  const isInPlan = !!(data.plan||{})[id];
+
+  const toggleWant = (uid) => onChange("want", { ...data.want, [id]:{ ...want, [uid]:!want[uid] } });
+  const toggleAllRidden = () => {
+    const next = Object.fromEntries(users.map(u=>[u.id, !allRidden]));
+    onChange("ridden", { ...data.ridden, [id]:next });
+  };
+  const togglePlan = () => {
+    onChange("plan", { ...(data.plan||{}), [id]: !isInPlan });
+  };
+  const addHistory = () => { if (!newVisit.trim()) return; onChange("history", { ...(data.history||{}), [id]:[...history, newVisit.trim()] }); setNewVisit(""); };
+  const removeHistory = (i) => onChange("history", { ...(data.history||{}), [id]:history.filter((_,idx)=>idx!==i) });
+  const setNote = (n) => onChange("notes", { ...(data.notes||{}), [id]:n });
+  const handlePhoto = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const compressed = await compressImage(ev.target.result);
+      onChange("photos", { ...(data.photos||{}), [id]:compressed });
+    };
+    reader.readAsDataURL(file);
+  };
+  useEffect(() => {
+    const handlePaste = (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = async (ev) => {
+            const compressed = await compressImage(ev.target.result);
+            onChange("photos", { ...(data.photos||{}), [id]:compressed });
+          };
+          reader.readAsDataURL(file);
+          break;
+        }
+      }
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [id]);
+
+  let passLines = [];
+  if (attr.dpa>=3) passLines.push({color:"#e53935",text:"DPA即取得"});
+  else if (attr.dpa===2) passLines.push({color:"#f57c00",text:"DPA推奨"});
+  else if (attr.dpa===1) passLines.push({color:"#f57c00",text:"DPA任意"});
+  if (attr.pp>0) passLines.push({color:"#4caf50",text:"プライオリティパス任意"});
+
+  const sCell = { background:C.muted, borderRadius:"10px", padding:"10px 12px" };
+
+  const sheetRef = useRef(null);
+  const touchStartY = useRef(null);
+  const handleTouchStart = (e) => { touchStartY.current = e.touches[0].clientY; };
+  const handleTouchEnd = (e) => {
+    if (touchStartY.current === null) return;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    if (dy > 80 && sheetRef.current && sheetRef.current.scrollTop === 0) onClose();
+    touchStartY.current = null;
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:200,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={(e)=>e.target===e.currentTarget&&onClose()}>
+      <div ref={sheetRef} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} style={{background:C.card,borderRadius:"20px 20px 0 0",width:"100%",maxWidth:"500px",maxHeight:"90vh",overflowY:"auto",paddingBottom:"32px"}}>
+        <div style={{width:"40px",height:"4px",background:"#ddd",borderRadius:"2px",margin:"12px auto 4px"}}/>
+        {/* Hero */}
+        <div style={{textAlign:"center",padding:"8px 0 12px",lineHeight:1}}>
+          {photo
+            ? <img src={photo} alt="" style={{width:"100%",height:"180px",objectFit:"cover",display:"block"}}/>
+            : <ImgOrEmoji imgUrl={attr.imgUrl} emoji={attr.emoji} cardMode={false}/>
+          }
+        </div>
+        <input ref={fileInputRef} type="file" accept="image/*" style={{display:"none"}} onChange={handlePhoto}/>
+        <div style={{display:"flex",gap:"10px",margin:"0 16px 16px"}}>
+          <button onClick={togglePlan} style={{flex:1,padding:"12px 8px",background:isInPlan?"#fce4ec":"#e3f2fd",color:isInPlan?"#e57373":"#1976d2",border:"none",borderRadius:"12px",fontWeight:"700",fontSize:"13px",cursor:"pointer"}}>
+            {isInPlan ? "📅 当日計画から除外" : "📅 当日計画に追加"}
+          </button>
+          <button onClick={()=>fileInputRef.current&&fileInputRef.current.click()} style={{flex:1,padding:"12px 8px",background:"#3a3a3a",color:"#fff",border:"none",borderRadius:"12px",fontWeight:"700",fontSize:"13px",cursor:"pointer"}}>📷 写真を選ぶ / Ctrl+V貼付</button>
+        </div>
+        <div style={{padding:"0 16px 10px",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div>
+            <h2 style={{fontSize:"18px",fontWeight:"800",color:C.text}}>{attr.name}</h2>
+            <p style={{fontSize:"12px",color:C.sub,marginTop:"2px"}}>{attr.area.includes("ランド")||attr.area.includes("タウン")||attr.area.includes("カントリー")?"東京ディズニーランド":"東京ディズニーシー"} · {attr.area}</p>
+          </div>
+          <button onClick={onClose} style={{background:C.muted,border:"none",borderRadius:"50%",width:"32px",height:"32px",cursor:"pointer",fontSize:"16px",flexShrink:0,color:C.text}}>×</button>
+        </div>
+        <p style={{padding:"0 16px 12px",fontSize:"13px",lineHeight:1.7,color:C.sub}}>{attr.desc}</p>
+        {passLines.length>0&&(
+          <div style={{background:"#fffbee",border:"1px solid #ffe082",borderRadius:"12px",padding:"12px 14px",margin:"0 16px 12px"}}>
+            <p style={{color:"#f5a623",fontWeight:"700",marginBottom:"6px",fontSize:"13px"}}>⚡ パス情報</p>
+            {passLines.map((pl,i)=>(
+              <p key={i} style={{display:"flex",alignItems:"center",gap:"6px",fontSize:"13px",marginTop:i>0?"4px":0}}>
+                <span style={{color:pl.color,fontSize:"16px"}}>●</span>{pl.text}
+              </p>
+            ))}
+          </div>
+        )}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",margin:"0 16px 12px"}}>
+          {[["所要時間",attr.dur],["スリル度",attr.thrill==="なし"?"─":attr.thrill],["身長制限",attr.height],["カテゴリ",attr.tags.filter(t=>t!=="family").map(t=>TAG_LABELS[t]||t).join("・")||"ファミリー"]].map(([l,v])=>(
+            <div key={l} style={sCell}><div style={{fontSize:"11px",color:C.sub,marginBottom:"4px"}}>{l}</div><div style={{fontSize:"14px",fontWeight:"700",color:C.text}}>{v}</div></div>
+          ))}
+        </div>
+        {/* 乗りたい投票 */}
+        <div style={{margin:"0 16px 12px"}}>
+          <p style={{fontWeight:"700",marginBottom:"8px",fontSize:"14px",color:C.text}}>🎯 乗りたい投票</p>
+          <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+            {users.map((u,i)=>{
+              const c=USER_COLORS[i]||USER_COLORS[0]; const on=want[u.id];
+              return(
+                <button key={u.id} onClick={()=>toggleWant(u.id)} style={{flex:"1 0 calc(50% - 4px)",minWidth:"120px",padding:"13px 8px",border:on?"none":`2px solid ${c.bg}`,borderRadius:"12px",background:on?c.bg:(C.dark?"#1f2937":"#fff"),color:on?c.fg:c.bg,fontWeight:"700",fontSize:"13px",cursor:"pointer"}}>
+                  👍 {u.name}・行きたい！
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {/* 乗ったチェック */}
+        <div style={{margin:"0 16px 12px"}}>
+          <p style={{fontWeight:"700",marginBottom:"8px",fontSize:"14px",color:C.text}}>✅ 乗ったチェック</p>
+          <button onClick={toggleAllRidden} style={{width:"100%",padding:"13px",border:allRidden?"none":"2px solid #4caf50",borderRadius:"12px",background:allRidden?"#4caf50":(C.dark?"#1f2937":"#fff"),color:allRidden?"#fff":"#4caf50",fontWeight:"700",fontSize:"14px",cursor:"pointer"}}>
+            {allRidden ? `✓ 全員乗った！` : `🎢 乗った！（全員）`}
+          </button>
+        </div>
+        {/* 公式サイト */}
+        <div style={{margin:"0 16px 8px"}}>
+          <a href={attr.link} target="_blank" rel="noopener noreferrer" style={{textDecoration:"none"}}>
+            <button style={{width:"100%",padding:"13px",background:"#f0f4ff",color:"#3949ab",border:"none",borderRadius:"12px",fontWeight:"600",fontSize:"13px",cursor:"pointer",marginBottom:"8px"}}>🔗 公式サイトで詳細を見る</button>
+          </a>
+        </div>
+        {/* 訪問履歴 */}
+        <div style={{margin:"0 16px 12px"}}>
+          <p style={{fontWeight:"700",marginBottom:"8px",fontSize:"14px",color:C.text}}>📅 訪問履歴</p>
+          {history.map((h,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",background:"#e3f2fd",borderRadius:"10px",padding:"9px 12px",marginBottom:"6px"}}>
+              <span style={{flex:1,color:"#1976d2",fontWeight:"600",fontSize:"14px"}}>{h}</span>
+              <button onClick={()=>removeHistory(i)} style={{background:"none",border:"none",color:"#e53935",cursor:"pointer",fontSize:"18px",lineHeight:1}}>×</button>
+            </div>
+          ))}
+          <div style={{display:"flex",gap:"8px",marginTop:"6px"}}>
+            <input style={{flex:1,border:`1.5px solid ${C.inBd}`,borderRadius:"10px",padding:"9px 12px",fontSize:"13px",fontFamily:"inherit",outline:"none",background:C.inBg,color:C.text}} placeholder="例：2024年7月" value={newVisit} onChange={(e)=>setNewVisit(e.target.value)} onKeyDown={(e)=>e.key==="Enter"&&addHistory()}/>
+            <button onClick={addHistory} style={{background:"#1976d2",color:"#fff",border:"none",borderRadius:"10px",padding:"9px 18px",fontWeight:"700",cursor:"pointer",fontSize:"14px"}}>追加</button>
+          </div>
+        </div>
+        {/* メモ */}
+        <div style={{margin:"0 16px 8px"}}>
+          <p style={{fontWeight:"700",marginBottom:"8px",fontSize:"14px",color:C.text}}>📝 メモ</p>
+          <textarea style={S.textarea(C)} value={note} placeholder="感想・メモなど..." onChange={(e)=>setNote(e.target.value)}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Settings Modal ─────────────────────────────────────────────────────────
+function SettingsModal({ data, onClose, onChange }) {
+  const C = useC();
+  const [users, setUsers] = useState([...(data.users||INITIAL_DATA.users)]);
+  const [tripDate, setTripDate] = useState(data.tripDate);
+  const [baked, setBaked] = useState(false);
+  const [compressing, setCompressing] = useState(false);
+
+  const addUser = () => {
+    if (users.length >= 10) return;
+    setUsers([...users, {id:"u"+Date.now(), name:""}]);
+  };
+  const removeUser = (uid) => {
+    if (users.length <= 1) return;
+    setUsers(users.filter(u=>u.id!==uid));
+  };
+  const updateName = (uid, name) => setUsers(users.map(u=>u.id===uid?{...u,name}:u));
+  const save = () => {
+    const cleaned = users.map((u,i)=>({...u, name:u.name.trim()||`メンバー${i+1}`}));
+    onChange("users", cleaned);
+    onChange("tripDate", tripDate);
+    onClose();
+  };
+  const compressAll = async () => {
+    setCompressing(true);
+    const photos = data.photos || {};
+    const newPhotos = {};
+    for (const key of Object.keys(photos)) newPhotos[key] = await compressImage(photos[key]);
+    onChange("photos", newPhotos);
+    setCompressing(false);
+  };
+  const saveDefault = () => {
+    if (!window.confirm("現在のすべてのデータをバックアップします。\n\nいいね・乗った・メモ・履歴・写真が\nbaked_data.js に保存されます。\n\nよろしいですか？")) return;
+    const photos = data.photos || {};
+    const content = `window.BAKED_PHOTOS = ${JSON.stringify(photos)};\nwindow.BAKED_DATA = ${JSON.stringify(data)};`;
+    const blob = new Blob([content], {type:"application/javascript"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "baked_data.js"; a.click();
+    URL.revokeObjectURL(url);
+    setBaked(true); setTimeout(()=>setBaked(false), 3000);
+  };
+  const restoreDefault = () => {
+    if (!window.BAKED_DATA) { alert("バックアップデータが見つかりません。\nbaked_data.js をフォルダに入れてからアプリを再読み込みしてください。"); return; }
+    if (!window.confirm("baked_data.js のバックアップデータを復元します。\n現在のデータは上書きされます。\n\nよろしいですか？")) return;
+    const bd = window.BAKED_DATA;
+    const baked = window.BAKED_PHOTOS || {};
+    const restored = { ...INITIAL_DATA, ...bd, photos: { ...baked, ...(bd.photos||{}) } };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(restored));
+    alert("復元しました。アプリを再読み込みします。");
+    window.location.reload();
+  };
+  const importBackup = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const text = ev.target.result;
+        if (!text || text.trim().length === 0) {
+          alert("ファイルが空です。正しいbaked_data.jsを選んでください。"); return;
+        }
+        const tmp = {};
+        try {
+          const fn = new Function('window', text);
+          fn(tmp);
+        } catch(evalErr) {
+          alert("ファイルの解析に失敗しました。\n正しいbaked_data.jsを選んでください。\n\n詳細: " + evalErr.message); return;
+        }
+        const restored = tmp.BAKED_DATA;
+        const photos = tmp.BAKED_PHOTOS || {};
+        if (!restored) {
+          alert("バックアップデータが見つかりません。\n正しいbaked_data.jsを選んでください。\n\nファイル名: " + file.name); return;
+        }
+        if (!window.confirm("ファイルからデータを復元します。\n現在のデータは上書きされます。\n\nよろしいですか？")) return;
+        const allPhotos = { ...photos, ...(restored.photos||{}) };
+        const merged = { ...INITIAL_DATA, ...restored, photos: allPhotos };
+        // まず普通に保存を試みる
+        const trySave = (obj) => {
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(obj)); return true; }
+          catch(e) { return false; }
+        };
+        if (trySave(merged)) {
+          alert("復元しました！アプリを再読み込みします。");
+          window.location.reload(); return;
+        }
+        // 容量オーバー → 写真を圧縮して再試行
+        alert("データが大きいため写真を圧縮しています…\nしばらくお待ちください。");
+        const compressedPhotos = {};
+        for (const key of Object.keys(allPhotos)) {
+          try { compressedPhotos[key] = await compressImage(allPhotos[key]); }
+          catch(e) { compressedPhotos[key] = allPhotos[key]; }
+        }
+        const mergedC = { ...merged, photos: compressedPhotos };
+        if (trySave(mergedC)) {
+          alert("写真を圧縮して復元しました！アプリを再読み込みします。");
+          window.location.reload(); return;
+        }
+        // まだオーバー → 写真なしで保存
+        const noPhotos = { ...merged, photos: {} };
+        if (trySave(noPhotos)) {
+          alert("容量制限のため写真を除いて復元しました。\nいいね・履歴・メモなどは全て復元されています。\n\nアプリを再読み込みします。");
+          window.location.reload(); return;
+        }
+        alert("容量不足で復元できませんでした。\niOSの「設定 → Safari → 履歴とWebサイトデータを消去」をお試しください。");
+      } catch(err) {
+        alert("ファイルの読み込みに失敗しました。\n\n詳細: " + err.message);
+      }
+    };
+    reader.onerror = () => { alert("ファイルの読み取りに失敗しました。もう一度お試しください。"); };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = "";
+  };
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}} onClick={(e)=>e.target===e.currentTarget&&onClose()}>
+      <div style={{background:C.card,borderRadius:"16px",width:"100%",maxWidth:"400px",padding:"24px 20px",maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"20px"}}>
+          <h2 style={{fontSize:"18px",fontWeight:"800",color:C.text}}>⚙️ 設定</h2>
+          <button onClick={onClose} style={{background:C.muted,border:"none",borderRadius:"50%",width:"32px",height:"32px",cursor:"pointer",color:C.text}}>×</button>
+        </div>
+
+        {/* 旅行日 */}
+        <div style={{marginBottom:"18px"}}>
+          <label style={{fontSize:"12px",fontWeight:"700",color:C.sub,display:"block",marginBottom:"6px"}}>旅行日</label>
+          <input type="date" style={S.input(C)} value={tripDate} onChange={e=>setTripDate(e.target.value)}/>
+        </div>
+
+        {/* メンバー管理 */}
+        <div style={{marginBottom:"14px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}}>
+            <label style={{fontSize:"12px",fontWeight:"700",color:C.sub}}>👥 メンバー（最大10人）</label>
+            <span style={{fontSize:"11px",color:C.sub}}>{users.length}/10</span>
+          </div>
+          {users.map((u,i)=>{
+            const c = USER_COLORS[i]||USER_COLORS[0];
+            return (
+              <div key={u.id} style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"8px"}}>
+                <div style={{width:"12px",height:"12px",borderRadius:"50%",background:c.bg,flexShrink:0}}/>
+                <input
+                  style={{...S.input(C),flex:1,padding:"9px 12px"}}
+                  value={u.name}
+                  placeholder={`メンバー${i+1}`}
+                  maxLength={10}
+                  onChange={e=>updateName(u.id,e.target.value)}
+                />
+                {users.length>1&&(
+                  <button onClick={()=>removeUser(u.id)} style={{background:"#fce4ec",color:"#e53935",border:"none",borderRadius:"8px",width:"32px",height:"32px",cursor:"pointer",fontSize:"16px",flexShrink:0,fontWeight:"700"}}>×</button>
+                )}
+              </div>
+            );
+          })}
+          {users.length<10&&(
+            <button onClick={addUser} style={{width:"100%",padding:"10px",background:"transparent",color:"#1976d2",border:`2px dashed #1976d2`,borderRadius:"12px",fontWeight:"700",fontSize:"13px",cursor:"pointer",marginTop:"4px"}}>
+              ＋ メンバーを追加
+            </button>
+          )}
+        </div>
+
+        <button onClick={save} style={{width:"100%",padding:"13px",background:"#1a237e",color:"#fff",border:"none",borderRadius:"12px",fontWeight:"700",fontSize:"14px",cursor:"pointer",marginTop:"6px"}}>保存する</button>
+
+        <div style={{marginTop:"16px",borderTop:`1px solid ${C.bd}`,paddingTop:"16px"}}>
+          <p style={{fontSize:"13px",fontWeight:"800",color:C.text,marginBottom:"4px"}}>💾 バックアップ</p>
+          <p style={{fontSize:"11px",color:C.sub,marginBottom:"10px",lineHeight:1.6}}>いいね・乗った・メモ・履歴・写真など<br/>すべてのデータをファイルに保存します。<br/>ブラウザのキャッシュが消えても、ファイルを<br/>DisneyAppフォルダに入れておけば自動で復元されます。</p>
+          {Object.keys(data.photos||{}).length>0&&(
+            <button onClick={compressAll} disabled={compressing} style={{width:"100%",padding:"11px",background:compressing?"#78909c":"#00796b",color:"#fff",border:"none",borderRadius:"12px",fontWeight:"700",fontSize:"12px",cursor:compressing?"not-allowed":"pointer",transition:"background 0.3s",marginBottom:"8px"}}>
+              {compressing ? "⏳ 圧縮中..." : `🗜️ 保存前に写真を圧縮する（${Object.keys(data.photos||{}).length}枚）`}
+            </button>
+          )}
+          <button onClick={saveDefault} style={{width:"100%",padding:"13px",background:baked?"#4caf50":"#1a237e",color:"#fff",border:"none",borderRadius:"12px",fontWeight:"700",fontSize:"14px",cursor:"pointer",transition:"background 0.3s",marginBottom:"8px"}}>
+            {baked ? "✓ 保存しました！フォルダに入れてね" : "💾 バックアップを保存する"}
+          </button>
+          <p style={{fontSize:"11px",color:C.sub,marginBottom:"10px",lineHeight:1.6,textAlign:"center"}}>ダウンロードした <strong>baked_data.js</strong> を<br/>DisneyAppフォルダに上書きすれば完了</p>
+          <button onClick={restoreDefault} style={{width:"100%",padding:"12px",background:window.BAKED_DATA?"#e8f5e9":"#f5f5f5",color:window.BAKED_DATA?"#2e7d32":"#aaa",border:`1px solid ${window.BAKED_DATA?"#a5d6a7":"#e0e0e0"}`,borderRadius:"12px",fontWeight:"700",fontSize:"13px",cursor:window.BAKED_DATA?"pointer":"default",transition:"background 0.3s"}}>
+            {window.BAKED_DATA ? "🔁 バックアップから復元する" : "🔁 復元（バックアップなし）"}
+          </button>
+          {window.BAKED_DATA&&<p style={{fontSize:"11px",color:"#4caf50",marginTop:"4px",textAlign:"center"}}>✓ バックアップデータあり</p>}
+          <label style={{display:"block",width:"100%",padding:"12px",background:"#e3f2fd",color:"#1565c0",border:"1px solid #90caf9",borderRadius:"12px",fontWeight:"700",fontSize:"13px",cursor:"pointer",textAlign:"center",marginTop:"8px",boxSizing:"border-box"}}>
+            📂 ファイルから復元する（スマホ対応）
+            <input type="file" accept=".js,text/javascript,application/javascript,application/octet-stream,*/*" style={{display:"none"}} onChange={importBackup}/>
+          </label>
+          <p style={{fontSize:"11px",color:C.sub,marginTop:"4px",lineHeight:1.6,textAlign:"center"}}>PCで保存した <strong>baked_data.js</strong> をスマホに<br/>送って、このボタンで選択すると復元できます</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Day Tab ─────────────────────────────────────────────────────────────
+function DayTab({ data, park, onOpen, onChange }) {
+  const C = useC();
+  const users = data.users || INITIAL_DATA.users;
+  const attrs = DATA[park];
+  const [memo, setMemo] = useState(data.dayMemo||"");
+  const handleMemoChange = (e) => { setMemo(e.target.value); onChange("dayMemo", e.target.value); };
+  const [saved, setSaved] = useState(false);
+
+  const saveTripLog = () => {
+    const riddenIds = attrs.filter(a=>users.every(u=>data.ridden[a.id]?.[u.id])).map(a=>a.id);
+    const eatenIds = restaurants.filter(r=>(data.restaurantVisited||{})[r.id]).map(r=>r.id);
+    const stayedIds = HOTELS[park].filter(h=>(data.hotelStayed||{})[h.id]).map(h=>h.id);
+    const log = { date: data.tripDate||new Date().toISOString().slice(0,10), park, memo: data.dayMemo||"", ridden: riddenIds, eaten: eatenIds, stayed: stayedIds };
+    onChange("tripLogs", [...(data.tripLogs||[]), log]);
+    setSaved(true); setTimeout(()=>setSaved(false), 2500);
+  };
+
+  const wantList = attrs.filter(a=>(data.plan||{})[a.id]);
+  const dpa3 = wantList.filter(a=>a.dpa>=3).sort((a,b)=>b.dpa-a.dpa);
+  const pp = wantList.filter(a=>a.pp>0&&a.dpa<3).sort((a,b)=>b.pp-a.pp);
+  const dpa2 = wantList.filter(a=>a.dpa===2&&a.pp===0);
+
+  const restaurants = RESTAURANTS[park];
+  const favRestaurants = restaurants.filter(r=>(data.restaurantFavorites||{})[r.id]);
+
+  const toggleRide = (a) => {
+    const done = users.every(u=>data.ridden[a.id]?.[u.id]);
+    onChange("ridden",{...data.ridden,[a.id]: Object.fromEntries(users.map(u=>[u.id,!done]))});
+  };
+  const removeWant = (a) => onChange("plan",{...(data.plan||{}),[a.id]:false});
+  const toggleEat = (r) => {
+    const eaten = (data.restaurantVisited||{})[r.id];
+    onChange("restaurantVisited",{...(data.restaurantVisited||{}),[r.id]:!eaten});
+  };
+  const removeFavRestaurant = (r) => onChange("restaurantFavorites",{...(data.restaurantFavorites||{}),[r.id]:false});
+
+  const favHotels = HOTELS[park].filter(h=>(data.hotelFavorites||{})[h.id]);
+  const toggleStay = (h) => {
+    const stayed = (data.hotelStayed||{})[h.id];
+    onChange("hotelStayed",{...(data.hotelStayed||{}),[h.id]:!stayed});
+  };
+  const removeFavHotel = (h) => onChange("hotelFavorites",{...(data.hotelFavorites||{}),[h.id]:false});
+
+
+  const sc = { background:C.card, borderRadius:"14px", padding:"14px 16px", marginBottom:"12px", boxShadow:C.shadow };
+
+  const RestaurantDayCard = ({r}) => {
+    const eaten = (data.restaurantVisited||{})[r.id];
+    return (
+      <div style={{background:eaten?(C.dark?"#064e3b":"#f0fdf4"):C.card,borderRadius:"14px",padding:"14px",marginBottom:"10px",boxShadow:C.shadow,border:eaten?`1px solid #86efac`:`1px solid ${C.bd}`,display:"flex",alignItems:"center",gap:"12px"}}>
+        <span style={{fontSize:"32px"}}>{r.emoji}</span>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:"700",fontSize:"14px",color:C.text}}>{r.name}</div>
+          <div style={{fontSize:"11px",color:C.sub}}>{r.area} · {r.cat} · {r.price}</div>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:"6px",flexShrink:0}}>
+          <button onClick={()=>toggleEat(r)} style={{padding:"10px 14px",background:eaten?"#4caf50":"#e65100",color:"#fff",border:"none",borderRadius:"12px",fontWeight:"700",fontSize:"13px",cursor:"pointer",whiteSpace:"nowrap"}}>{eaten?"✓ 行った":"行った？"}</button>
+          <button onClick={()=>removeFavRestaurant(r)} style={{padding:"8px 14px",background:"#fce4ec",color:"#e57373",border:"none",borderRadius:"12px",fontWeight:"600",fontSize:"12px",cursor:"pointer"}}>削除</button>
+        </div>
+      </div>
+    );
+  };
+
+  const DayCard = ({a}) => {
+    const rid = data.ridden[a.id]||{};
+    const done = users.every(u=>rid[u.id]);
+    return (
+      <div style={{background:done?(C.dark?"#064e3b":"#f0fdf4"):C.card,borderRadius:"14px",padding:"14px",marginBottom:"10px",boxShadow:C.shadow,border:done?`1px solid #86efac`:`1px solid ${C.bd}`,display:"flex",alignItems:"center",gap:"12px"}}>
+        <span style={{fontSize:"32px"}}>{a.emoji}</span>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:"700",fontSize:"14px",color:C.text}}>{a.name}</div>
+          <div style={{fontSize:"11px",color:C.sub}}>{a.area} · {a.dur}</div>
+          {a.dpa>=3&&<span style={{fontSize:"10px",background:"#fff3e0",color:"#e65100",borderRadius:"6px",padding:"1px 7px",fontWeight:"700",display:"inline-block",marginTop:"3px"}}>⚡ DPA最優先</span>}
+          {a.dpa===2&&<span style={{fontSize:"10px",background:"#fff8e1",color:"#f57f17",borderRadius:"6px",padding:"1px 7px",fontWeight:"700",display:"inline-block",marginTop:"3px"}}>🟡 DPA推奨</span>}
+          {a.pp>0&&a.dpa<2&&<span style={{fontSize:"10px",background:"#e8f5e9",color:"#2e7d32",borderRadius:"6px",padding:"1px 7px",fontWeight:"700",display:"inline-block",marginTop:"3px"}}>🟢 PP推奨</span>}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:"6px",flexShrink:0}}>
+          <button onClick={()=>toggleRide(a)} style={{padding:"10px 14px",background:done?"#4caf50":"#1a237e",color:"#fff",border:"none",borderRadius:"12px",fontWeight:"700",fontSize:"13px",cursor:"pointer",whiteSpace:"nowrap"}}>{done?"✓ 乗った":"乗った？"}</button>
+          <button onClick={()=>removeWant(a)} style={{padding:"8px 14px",background:"#fce4ec",color:"#e57373",border:"none",borderRadius:"12px",fontWeight:"600",fontSize:"12px",cursor:"pointer"}}>削除</button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {/* 日付 */}
+      <div style={{marginBottom:"12px",background:data.tripDate?"#1a237e":C.card,borderRadius:"14px",boxShadow:C.shadow,border:data.tripDate?"none":`2px dashed ${C.bd}`,padding:"16px 20px",display:"flex",alignItems:"center",gap:"14px"}}>
+        <span style={{fontSize:"44px",flexShrink:0}}>📅</span>
+        <div style={{flex:1}}>
+          <p style={{fontSize:"11px",fontWeight:"700",color:data.tripDate?"rgba(255,255,255,0.6)":C.sub,marginBottom:"4px"}}>旅行日</p>
+          <input type="date" value={data.tripDate||""} onChange={e=>onChange("tripDate",e.target.value)}
+            style={{background:"transparent",border:"none",outline:"none",fontSize:"20px",fontWeight:"900",color:data.tripDate?"#fff":C.text,width:"100%",cursor:"pointer",WebkitAppearance:"none",padding:0}}/>
+        </div>
+      </div>
+
+      {/* 履歴に記録 */}
+      <button onClick={saveTripLog} style={{width:"100%",background:saved?"#4caf50":"#37474f",color:"#fff",border:"none",borderRadius:"14px",padding:"14px",fontWeight:"700",cursor:"pointer",fontSize:"14px",transition:"background 0.3s",marginBottom:"12px"}}>
+        {saved?"✓ 記録しました！":"📖 履歴に記録"}
+      </button>
+
+      {/* メモ */}
+      <div style={sc}>
+        <p style={{fontSize:"15px",fontWeight:"800",color:C.text,marginBottom:"10px"}}>📝 当日メモ</p>
+        <textarea style={S.textarea(C)} value={memo} placeholder="" onChange={handleMemoChange}/>
+      </div>
+
+      {/* 当日計画一覧 */}
+      <p style={{fontWeight:"800",fontSize:"15px",color:C.text,marginBottom:"10px"}}>📋 当日計画一覧</p>
+      {wantList.length===0&&favRestaurants.length===0&&favHotels.length===0?(
+        <div style={{textAlign:"center",color:"#aaa",padding:"30px 0 20px"}}>
+          <p style={{fontSize:"36px"}}>⭐</p>
+          <p style={{fontSize:"14px",marginTop:"8px"}}>一覧タブで「行きたい！」を追加しよう</p>
+        </div>
+      ):<>
+        {wantList.length>0&&<>
+          {(favRestaurants.length>0||favHotels.length>0)&&<p style={{fontSize:"12px",fontWeight:"700",color:C.sub,marginBottom:"8px"}}>🎡 アトラクション</p>}
+          {wantList.map(a=><DayCard key={a.id} a={a}/>)}
+        </>}
+        {favRestaurants.length>0&&<>
+          <p style={{fontSize:"12px",fontWeight:"700",color:C.sub,margin:"12px 0 8px"}}>🍴 グルメ</p>
+          {favRestaurants.map(r=><RestaurantDayCard key={r.id} r={r}/>)}
+        </>}
+        {favHotels.length>0&&<>
+          <p style={{fontSize:"12px",fontWeight:"700",color:C.sub,margin:"12px 0 8px"}}>🛎️ ホテル</p>
+          {favHotels.map(h=>{
+            const stayed=(data.hotelStayed||{})[h.id];
+            return(
+              <div key={h.id} style={{background:stayed?(C.dark?"#064e3b":"#f0fdf4"):C.card,borderRadius:"14px",padding:"14px",marginBottom:"10px",boxShadow:C.shadow,border:stayed?`1px solid #86efac`:`1px solid ${C.bd}`,display:"flex",alignItems:"center",gap:"12px"}}>
+                <span style={{fontSize:"32px"}}>{h.emoji}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:"700",fontSize:"14px",color:C.text}}>{h.name}</div>
+                  <div style={{fontSize:"11px",color:C.sub}}>{h.type} · {h.price}</div>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:"6px",flexShrink:0}}>
+                  <button onClick={()=>toggleStay(h)} style={{padding:"10px 14px",background:stayed?"#4caf50":"#1a237e",color:"#fff",border:"none",borderRadius:"12px",fontWeight:"700",fontSize:"13px",cursor:"pointer",whiteSpace:"nowrap"}}>{stayed?"✓ 泊まった":"泊まった？"}</button>
+                  <button onClick={()=>removeFavHotel(h)} style={{padding:"8px 14px",background:"#fce4ec",color:"#e57373",border:"none",borderRadius:"12px",fontWeight:"600",fontSize:"12px",cursor:"pointer"}}>削除</button>
+                </div>
+              </div>
+            );
+          })}
+        </>}
+      </>}
+
+      {/* DPA/PPガイド */}
+      {dpa3.length>0&&(
+        <div style={{...sc,marginTop:"16px",background:C.dark?"#3b1515":"#fff5f5",border:"1px solid #ffcdd2"}}>
+          <p style={{fontWeight:"800",color:"#e53935",marginBottom:"6px",fontSize:"14px"}}>🔴 STEP1: 入場直後にDPAを取得</p>
+          <p style={{fontSize:"12px",color:C.sub,marginBottom:"10px"}}>入場したらすぐにDPA（ディズニー・プレミアアクセス）を購入！売り切れ前に。</p>
+          {dpa3.map(a=>{const rid=data.ridden[a.id]||{};return(
+            <div key={a.id} onClick={()=>onOpen(a)} style={{display:"flex",alignItems:"center",gap:"10px",padding:"8px 0",borderBottom:`1px solid ${C.bd}`,cursor:"pointer"}}>
+              <span style={{fontSize:"22px"}}>{a.emoji}</span>
+              <div style={{flex:1}}><div style={{fontWeight:"700",fontSize:"13px",color:C.text}}>{a.name}</div><div style={{fontSize:"11px",color:C.sub}}>{a.area} · {a.dur}</div><span style={{fontSize:"10px",background:"#e53935",color:"#fff",borderRadius:"6px",padding:"1px 6px",fontWeight:"700"}}>🔴 DPA即取得</span></div>
+              {users.every(u=>rid[u.id])&&<span style={{color:"#4caf50",fontWeight:"700",fontSize:"16px"}}>✓</span>}
+            </div>
+          );})}
+        </div>
+      )}
+      {pp.length>0&&(
+        <div style={{...sc,background:C.dark?"#2d2000":"#fffde7",border:"1px solid #ffe082"}}>
+          <p style={{fontWeight:"800",color:"#f57c00",marginBottom:"6px",fontSize:"14px"}}>🟡 STEP2: プライオリティパスを取得</p>
+          <p style={{fontSize:"12px",color:C.sub,marginBottom:"10px"}}>DPA取得後にプライオリティパスを発行。時間帯をずらして発行可能。</p>
+          {pp.map(a=>{const rid=data.ridden[a.id]||{};return(
+            <div key={a.id} onClick={()=>onOpen(a)} style={{display:"flex",alignItems:"center",gap:"10px",padding:"8px 0",borderBottom:`1px solid ${C.bd}`,cursor:"pointer"}}>
+              <span style={{fontSize:"22px"}}>{a.emoji}</span>
+              <div style={{flex:1}}><div style={{fontWeight:"700",fontSize:"13px",color:C.text}}>{a.name}</div><div style={{fontSize:"11px",color:C.sub}}>{a.area} · {a.dur}</div><span style={{fontSize:"10px",background:"#ff8f00",color:"#fff",borderRadius:"6px",padding:"1px 6px",fontWeight:"700"}}>🟡 PP推奨</span></div>
+              {users.every(u=>rid[u.id])&&<span style={{color:"#4caf50",fontWeight:"700"}}>✓</span>}
+            </div>
+          );})}
+        </div>
+      )}
+      {dpa2.length>0&&(
+        <div style={{...sc,background:C.dark?"#1a1f2d":"#f3f4ff",border:"1px solid #c5cae9"}}>
+          <p style={{fontWeight:"800",color:"#3949ab",marginBottom:"6px",fontSize:"14px"}}>🔵 STEP3: DPA推奨（余裕があれば）</p>
+          <p style={{fontSize:"12px",color:C.sub,marginBottom:"10px"}}>混雑状況によっては追加DPAがあると快適。</p>
+          {dpa2.map(a=>{const rid=data.ridden[a.id]||{};return(
+            <div key={a.id} onClick={()=>onOpen(a)} style={{display:"flex",alignItems:"center",gap:"10px",padding:"8px 0",borderBottom:`1px solid ${C.bd}`,cursor:"pointer"}}>
+              <span style={{fontSize:"22px"}}>{a.emoji}</span>
+              <div style={{flex:1}}><div style={{fontWeight:"700",fontSize:"13px",color:C.text}}>{a.name}</div><div style={{fontSize:"11px",color:C.sub}}>{a.area} · {a.dur}</div></div>
+              {users.every(u=>rid[u.id])&&<span style={{color:"#4caf50",fontWeight:"700"}}>✓</span>}
+            </div>
+          );})}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Attractions Tab ──────────────────────────────────────────────────────
+function AttractionsTab({ data, park, onOpen, onChange }) {
+  const C = useC();
+  const users = data.users || INITIAL_DATA.users;
+  const [areaFilter, setAreaFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [tagFilter, setTagFilter] = useState("all");
+  const attrs = DATA[park];
+  const areas = [...new Set(attrs.map(a=>a.area))];
+
+  const handleReset = () => {
+    if (!window.confirm("乗った・行った・いいね・当日メモ・日付をリセットしますか？\n（旅の記録・写真は残ります）")) return;
+    onChange("ridden", {});
+    onChange("restaurantVisited", {});
+    onChange("want", {});
+    onChange("restaurantFavorites", {});
+    onChange("dayMemo", "");
+    onChange("tripDate", "");
+  };
+
+  const filtered = attrs.filter(a=>{
+    if (areaFilter!=="all"&&a.area!==areaFilter) return false;
+    if (tagFilter!=="all"&&!a.tags.includes(tagFilter)) return false;
+    const w=data.want[a.id]||{}, r=data.ridden[a.id]||{};
+    if (statusFilter==="want") return users.some(u=>w[u.id]);
+    if (statusFilter==="both") return users.every(u=>w[u.id]);
+    if (statusFilter==="unridden") return !users.some(u=>r[u.id]);
+    if (statusFilter==="visited") return users.some(u=>r[u.id]);
+    return true;
+  }).sort((a,b)=>{
+    if (statusFilter==="want"||statusFilter==="both") {
+      const wa=data.want[a.id]||{}, wb=data.want[b.id]||{};
+      return users.filter(u=>wb[u.id]).length - users.filter(u=>wa[u.id]).length;
+    }
+    return 0;
+  });
+
+  const gridCard=(s,dark,inPlan,allWant)=>({
+    background:s==="ridden"?(dark?"#064e3b":"#f0fdf4"):inPlan?(dark?"#3d1f00":"#fff4e6"):allWant?(dark?"#3d3800":"#fffde7"):dark?"#1f2937":"#f5f5f5",
+    borderRadius:"14px", overflow:"hidden", cursor:"pointer", position:"relative",
+    border:s==="ridden"?`2px solid #86efac`:inPlan?`2px solid #f5a623`:allWant?`2px solid #ffe082`:`2px solid transparent`
+  });
+
+  return (
+    <div>
+      <div style={{display:"flex",gap:"6px",overflowX:"auto",paddingBottom:"4px",marginBottom:"8px",alignItems:"center"}}>
+        <button style={S.chip(areaFilter==="all",C)} onClick={()=>setAreaFilter("all")}>すべて</button>
+        {areas.map(a=><button key={a} style={S.chip(areaFilter===a,C)} onClick={()=>setAreaFilter(a)}>{a}</button>)}
+      </div>
+      <div style={{display:"flex",gap:"6px",overflowX:"auto",paddingBottom:"4px",marginBottom:"8px",alignItems:"center"}}>
+        {[["all","すべて"],["popular","🔥人気"],["thrill","⚡スリル"],["show","🎭ショー"]].map(([k,l])=>(
+          <button key={k} style={S.chip(tagFilter===k,C)} onClick={()=>setTagFilter(k)}>{l}</button>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:"6px",overflowX:"auto",paddingBottom:"4px",marginBottom:"10px"}}>
+        {[["all","すべて"],["want","投票あり"],["both",users.length===1?"行く！":"全員とも！"],["unridden","未乗車"],["visited","訪問済み"]].map(([k,l])=>(
+          <button key={k} style={S.chip(statusFilter===k,C)} onClick={()=>setStatusFilter(k)}>{l}</button>
+        ))}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px"}}>
+        {filtered.map(a=>{
+          const r=data.ridden[a.id]||{}, w=data.want[a.id]||{};
+          const anyRidden=users.some(u=>r[u.id]);
+          const bothRidden=users.every(u=>r[u.id]);
+          const allWant=users.every(u=>w[u.id]);
+          const anyWant=users.some(u=>w[u.id]);
+          const inPlan=!!(data.plan||{})[a.id];
+          const ow=anyWant&&!allWant;
+          const s=bothRidden?"ridden":allWant?"both":"normal";
+          return (
+            <div key={a.id} onClick={()=>onOpen(a)} style={gridCard(s,C.dark,inPlan,allWant)}>
+              {bothRidden&&<div style={{position:"absolute",top:"6px",left:"6px",background:"#4caf50",color:"#fff",borderRadius:"8px",padding:"2px 6px",fontSize:"10px",fontWeight:"700"}}>✓乗った</div>}
+              {!bothRidden&&allWant&&<div style={{position:"absolute",top:"6px",left:"6px",background:"#f5a623",color:"#fff",borderRadius:"8px",padding:"2px 6px",fontSize:"10px",fontWeight:"700"}}>{users.length===1?"行く！":"全員！"}</div>}
+              {!bothRidden&&!allWant&&anyWant&&<div style={{position:"absolute",top:"6px",left:"6px",background:"#2196f3",color:"#fff",borderRadius:"8px",padding:"2px 6px",fontSize:"10px",fontWeight:"700"}}>予定</div>}
+              {inPlan&&!bothRidden&&<div style={{position:"absolute",top:"6px",right:"6px",background:"#f5a623",color:"#fff",borderRadius:"6px",padding:"2px 5px",fontSize:"9px",fontWeight:"700"}}>📅</div>}
+              {!anyRidden&&a.dpa>=2&&!anyWant&&!inPlan&&<div style={{position:"absolute",top:"6px",right:"6px",background:"#e53935",color:"#fff",borderRadius:"6px",padding:"2px 5px",fontSize:"9px",fontWeight:"700"}}>DPA</div>}
+              {(data.photos||{})[a.id]
+                ? <div style={{height:"80px",overflow:"hidden",borderRadius:"10px 10px 0 0"}}><img src={(data.photos||{})[a.id]} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/></div>
+                : <ImgOrEmoji imgUrl={a.imgUrl} emoji={a.emoji} cardMode={true}/>
+              }
+              <div style={{padding:"0 8px 10px"}}>
+                <div style={{fontSize:"11px",fontWeight:"700",color:C.text,lineHeight:1.4,marginBottom:"4px",wordBreak:"break-all"}}>{a.name}</div>
+                <div>{a.tags.filter(t=>t!=="family").slice(0,2).map(t=><span key={t} style={S.tag(TAG_COLORS[t]||"#888")}>{TAG_LABELS[t]||t}</span>)}</div>
+                {anyWant&&<div style={{marginTop:"4px"}}>{users.map((u,i)=>{const c=USER_COLORS[i]||USER_COLORS[0];return w[u.id]?<span key={u.id} style={S.pillUser(c.bg,c.fg,true)}>{u.name} 👍</span>:null;})}</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {filtered.length===0&&<div style={{textAlign:"center",color:"#aaa",padding:"40px"}}><p style={{fontSize:"14px"}}>該当するアトラクションがありません</p></div>}
+      <div style={{marginTop:"24px",paddingTop:"16px",borderTop:`1px solid ${C.bd}`,textAlign:"center"}}>
+        <button onClick={handleReset} style={{background:"none",color:"#e53935",border:"1px solid #ffcdd2",borderRadius:"10px",padding:"8px 20px",fontWeight:"700",fontSize:"12px",cursor:"pointer"}}>🔄 データをリセット</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── History Tab ─────────────────────────────────────────────────────────
+function HistoryTab({ data, park, onChange }) {
+  const C = useC();
+  const sc = { background:C.card, borderRadius:"14px", padding:"14px 16px", marginBottom:"12px", boxShadow:C.shadow };
+  const [openLog, setOpenLog] = useState(null);
+
+  const allAttrs = [...DATA.land, ...DATA.sea];
+  const allRests = [...RESTAURANTS.land, ...RESTAURANTS.sea];
+  const allHotels = [...HOTELS.land, ...HOTELS.sea];
+  const tripLogs = [...(data.tripLogs||[])].sort((a,b)=>b.date.localeCompare(a.date));
+  const deleteLog = (idx) => {
+    const logs = [...(data.tripLogs||[])];
+    logs.splice(data.tripLogs.length - 1 - idx, 1);
+    onChange("tripLogs", logs);
+    if (openLog===idx) setOpenLog(null);
+  };
+
+  return (
+    <div>
+      {/* 旅の記録 */}
+      {tripLogs.length>0&&(
+        <div style={{marginBottom:"12px"}}>
+          <p style={{fontSize:"15px",fontWeight:"800",color:C.text,marginBottom:"10px"}}>📖 旅の記録</p>
+          {tripLogs.map((log,idx)=>{
+            const parkName = log.park==="land"?"🏰 ランド":"🌊 シー";
+            const logAttrs = (log.ridden||[]).map(id=>allAttrs.find(a=>a.id===id)).filter(Boolean);
+            const logRests = (log.eaten||[]).map(id=>allRests.find(r=>r.id===id)).filter(Boolean);
+            const logHotels = (log.stayed||[]).map(id=>allHotels.find(h=>h.id===id)).filter(Boolean);
+            const isOpen = openLog===idx;
+            const summary = [logAttrs.length>0&&`🎡 ${logAttrs.length}件`, logRests.length>0&&`🍴 ${logRests.length}件`, logHotels.length>0&&`🏨 ${logHotels.length}件`].filter(Boolean).join(" · ");
+            return (
+              <div key={idx} style={{...sc,padding:"0",overflow:"hidden"}}>
+                <div onClick={()=>setOpenLog(isOpen?null:idx)} style={{display:"flex",alignItems:"center",gap:"10px",padding:"14px 16px",cursor:"pointer"}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:"800",fontSize:"14px",color:C.text}}>{log.date} {parkName}</div>
+                    <div style={{fontSize:"12px",color:C.sub,marginTop:"2px"}}>{summary||"記録なし"}{log.memo?" · メモあり":""}</div>
+                  </div>
+                  <span style={{color:C.sub,fontSize:"14px"}}>{isOpen?"▲":"▼"}</span>
+                </div>
+                {isOpen&&(
+                  <div style={{padding:"0 16px 14px",borderTop:`1px solid ${C.bd}`}}>
+                    {log.memo&&<p style={{fontSize:"13px",color:C.text,lineHeight:1.7,padding:"12px 0",whiteSpace:"pre-wrap"}}>{log.memo}</p>}
+                    {logAttrs.length>0&&(
+                      <div style={{marginTop:"8px"}}>
+                        <p style={{fontSize:"12px",fontWeight:"700",color:C.sub,marginBottom:"6px"}}>🎡 アトラクション</p>
+                        {logAttrs.map(a=>(
+                          <div key={a.id} style={{display:"flex",alignItems:"center",gap:"8px",padding:"5px 0",borderBottom:`1px solid ${C.bd}`}}>
+                            <span style={{fontSize:"16px"}}>{a.emoji}</span>
+                            <span style={{fontSize:"13px",color:C.text,flex:1}}>{a.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {logRests.length>0&&(
+                      <div style={{marginTop:"12px"}}>
+                        <p style={{fontSize:"12px",fontWeight:"700",color:C.sub,marginBottom:"6px"}}>🍴 グルメ</p>
+                        {logRests.map(r=>(
+                          <div key={r.id} style={{display:"flex",alignItems:"center",gap:"8px",padding:"5px 0",borderBottom:`1px solid ${C.bd}`}}>
+                            <span style={{fontSize:"16px"}}>{r.emoji}</span>
+                            <span style={{fontSize:"13px",color:C.text,flex:1}}>{r.name}</span>
+                            <span style={{fontSize:"11px",color:C.sub}}>{r.price}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {logHotels.length>0&&(
+                      <div style={{marginTop:"12px"}}>
+                        <p style={{fontSize:"12px",fontWeight:"700",color:C.sub,marginBottom:"6px"}}>🛎️ ホテル</p>
+                        {logHotels.map(h=>(
+                          <div key={h.id} style={{display:"flex",alignItems:"center",gap:"8px",padding:"5px 0",borderBottom:`1px solid ${C.bd}`}}>
+                            <span style={{fontSize:"16px"}}>{h.emoji}</span>
+                            <span style={{fontSize:"13px",color:C.text,flex:1}}>{h.name}</span>
+                            <span style={{fontSize:"11px",color:C.sub}}>{h.price}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <button onClick={()=>deleteLog(idx)} style={{marginTop:"12px",background:"#fce4ec",color:"#e57373",border:"none",borderRadius:"8px",padding:"7px 14px",fontSize:"12px",fontWeight:"700",cursor:"pointer"}}>🗑 この記録を削除</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {tripLogs.length===0&&<div style={{textAlign:"center",color:"#aaa",padding:"40px"}}><p style={{fontSize:"40px"}}>🏰</p><p style={{fontSize:"14px",marginTop:"8px"}}>当日タブで「この日を記録する」を押すと<br/>ここに旅の記録が残ります</p></div>}
+    </div>
+  );
+}
+
+// ─── Map Tab ──────────────────────────────────────────────────────────────
+function MapTab({ data, park, onOpen }) {
+  const C = useC();
+  const [selectedArea, setSelectedArea] = useState(null);
+  const [areaTab, setAreaTab] = useState("attr"); // "attr" | "rest"
+  const areas = MAP_AREAS[park];
+  const attrs = DATA[park];
+  const restaurants = RESTAURANTS[park];
+  const mapUsers = data.users || INITIAL_DATA.users;
+  const wantList = attrs.filter(a=>(data.plan||{})[a.id]);
+  const favRestaurants = restaurants.filter(r=>(data.restaurantFavorites||{})[r.id]);
+  const getWantCount = (areaName) => wantList.filter(a=>a.area===areaName).length;
+  const getFavRestCount = (areaName) => favRestaurants.filter(r=>r.area===areaName).length;
+  const getAreaAttrs = (areaName) => attrs.filter(a=>a.area===areaName);
+  const getAreaWant = (areaName) => wantList.filter(a=>a.area===areaName);
+  const getAreaRests = (areaName) => restaurants.filter(r=>r.area===areaName);
+  const getAreaFavRest = (areaName) => favRestaurants.filter(r=>r.area===areaName);
+  const selectArea = (id) => { setSelectedArea(prev=>prev===id?null:id); setAreaTab("attr"); };
+  const sc = { background:C.card, borderRadius:"14px", padding:"14px 16px", marginBottom:"12px", boxShadow:C.shadow };
+
+  return (
+    <div>
+      <div style={sc}>
+        <p style={{fontSize:"15px",fontWeight:"800",color:C.text,marginBottom:"10px",display:"flex",alignItems:"center",gap:"6px"}}>
+          {park==="land"?"🏰 東京ディズニーランドマップ":"🌊 東京ディズニーシーマップ"}
+          <span style={{fontSize:"11px",color:C.sub,fontWeight:"400"}}>エリアをタップ</span>
+        </p>
+        <svg viewBox={park==="sea"?"0 0 380 315":"0 0 380 275"} style={{width:"100%",height:"auto",cursor:"pointer"}}>
+          <rect width="380" height={park==="sea"?315:275} fill={C.dark?"#1e3a5f":"#b3d9f5"} rx="10"/>
+          {areas.map(a=>{
+            const cnt = getWantCount(a.id);
+            const rcnt = getFavRestCount(a.id);
+            const sel = selectedArea===a.id;
+            const hasBadge = cnt>0||rcnt>0;
+            return (
+              <g key={a.id} onClick={()=>selectArea(a.id)}>
+                <polygon points={a.points} fill={a.color} stroke={sel?"#1a237e":"#fff"} strokeWidth={sel?"2.5":"1"} opacity="0.92"/>
+                <text x={a.cx} y={hasBadge?a.cy-10:a.cy-4} textAnchor="middle" fontSize="8.5" fontWeight="bold" fill={a.textColor||"#333"}>{a.line1}</text>
+                <text x={a.cx} y={hasBadge?a.cy+2:a.cy+8} textAnchor="middle" fontSize="8.5" fontWeight="bold" fill={a.textColor||"#333"}>{a.line2}</text>
+                {cnt>0&&<>
+                  <circle cx={rcnt>0?a.cx-10:a.cx} cy={a.cy+14} r="9" fill="#f5a623"/>
+                  <text x={rcnt>0?a.cx-10:a.cx} y={a.cy+18} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#fff">{cnt}</text>
+                </>}
+                {rcnt>0&&<>
+                  <circle cx={cnt>0?a.cx+10:a.cx} cy={a.cy+14} r="9" fill="#e65100"/>
+                  <text x={cnt>0?a.cx+10:a.cx} y={a.cy+18} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#fff">{rcnt}</text>
+                </>}
+              </g>
+            );
+          })}
+          <text x="190" y={park==="sea"?"310":"272"} textAnchor="middle" fontSize="9" fill={C.dark?"#9ca3af":"#555"}>{park==="sea"?"🌊":"🏰"} 入口ゲート</text>
+        </svg>
+        <div style={{fontSize:"11px",color:C.sub,marginTop:"8px",display:"flex",gap:"16px"}}>
+          <span><span style={{background:"#f5a623",color:"#fff",borderRadius:"50%",padding:"0 5px",fontSize:"10px"}}>●</span> 当日計画</span>
+          <span><span style={{background:"#e65100",color:"#fff",borderRadius:"50%",padding:"0 5px",fontSize:"10px"}}>●</span> グルメ</span>
+        </div>
+      </div>
+      {selectedArea&&(()=>{
+        const areaAttrs = getAreaAttrs(selectedArea);
+        const areaWant = getAreaWant(selectedArea);
+        const areaRests = getAreaRests(selectedArea);
+        const areaFavRest = getAreaFavRest(selectedArea);
+        return (
+          <div style={{...sc,border:"2px solid #1a237e"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
+              <p style={{fontWeight:"800",fontSize:"15px",color:C.text}}>{selectedArea}</p>
+              <button onClick={()=>setSelectedArea(null)} style={{background:"none",border:"none",fontSize:"18px",cursor:"pointer",color:C.sub}}>×</button>
+            </div>
+            {/* タブ切り替え */}
+            <div style={{display:"flex",background:C.muted,borderRadius:"10px",padding:"3px",marginBottom:"12px"}}>
+              <button onClick={()=>setAreaTab("attr")} style={{flex:1,padding:"7px 0",border:"none",borderRadius:"8px",fontWeight:"700",fontSize:"13px",cursor:"pointer",background:areaTab==="attr"?(C.dark?"#374151":"#fff"):"transparent",color:areaTab==="attr"?(C.dark?"#f3f4f6":"#1a1a1a"):(C.dark?"#6b7280":"#888"),boxShadow:areaTab==="attr"?"0 1px 4px rgba(0,0,0,0.12)":"none"}}>
+                🎡 アトラクション <span style={{fontSize:"11px",color:areaTab==="attr"?"#1976d2":C.sub}}>({areaAttrs.length})</span>
+              </button>
+              <button onClick={()=>setAreaTab("rest")} style={{flex:1,padding:"7px 0",border:"none",borderRadius:"8px",fontWeight:"700",fontSize:"13px",cursor:"pointer",background:areaTab==="rest"?(C.dark?"#374151":"#fff"):"transparent",color:areaTab==="rest"?(C.dark?"#f3f4f6":"#1a1a1a"):(C.dark?"#6b7280":"#888"),boxShadow:areaTab==="rest"?"0 1px 4px rgba(0,0,0,0.12)":"none"}}>
+                🍴 レストラン <span style={{fontSize:"11px",color:areaTab==="rest"?"#e65100":C.sub}}>({areaRests.length})</span>
+              </button>
+            </div>
+
+            {areaTab==="attr"&&<>
+              {areaWant.length>0&&(
+                <div style={{marginBottom:"10px"}}>
+                  <p style={{fontSize:"12px",fontWeight:"700",color:"#1976d2",marginBottom:"6px"}}>📅 当日計画中</p>
+                  {areaWant.map(a=>(
+                    <div key={a.id} onClick={()=>onOpen(a)} style={{display:"flex",alignItems:"center",gap:"8px",background:"#e3f2fd",borderRadius:"10px",padding:"8px 12px",marginBottom:"4px",cursor:"pointer"}}>
+                      <span style={{fontSize:"18px"}}>{a.emoji}</span>
+                      <div><div style={{fontWeight:"700",fontSize:"13px",color:"#1976d2"}}>{a.name}</div><div style={{fontSize:"11px",color:"#888"}}>{a.dur}</div></div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p style={{fontSize:"12px",fontWeight:"700",color:C.sub,marginBottom:"6px"}}>全アトラクション</p>
+              {areaAttrs.map(a=>{
+                const inPlan=!!(data.plan||{})[a.id];
+                const done=mapUsers.every(u=>data.ridden[a.id]?.[u.id]);
+                return (
+                  <div key={a.id} onClick={()=>onOpen(a)} style={{display:"flex",alignItems:"center",gap:"8px",padding:"6px 0",borderBottom:`1px solid ${C.bd}`,cursor:"pointer"}}>
+                    <span style={{fontSize:"16px"}}>{a.emoji}</span>
+                    <span style={{flex:1,fontSize:"13px",fontWeight:inPlan?"700":"400",color:inPlan?"#1976d2":C.text}}>{a.name}</span>
+                    {done&&<span style={{color:"#4caf50",fontSize:"13px"}}>✓</span>}
+                  </div>
+                );
+              })}
+            </>}
+
+            {areaTab==="rest"&&<>
+              {areaFavRest.length>0&&(
+                <div style={{marginBottom:"10px"}}>
+                  <p style={{fontSize:"12px",fontWeight:"700",color:"#e65100",marginBottom:"6px"}}>⭐ グルメ計画中</p>
+                  {areaFavRest.map(r=>{
+                    const eaten=(data.restaurantVisited||{})[r.id];
+                    return (
+                      <div key={r.id} onClick={()=>window.open(r.link,'_blank')} style={{display:"flex",alignItems:"center",gap:"8px",background:"#fff3e0",borderRadius:"10px",padding:"8px 12px",marginBottom:"4px",cursor:"pointer"}}>
+                        <span style={{fontSize:"18px"}}>{r.emoji}</span>
+                        <div style={{flex:1}}><div style={{fontWeight:"700",fontSize:"13px",color:"#e65100",textDecoration:"underline",textDecorationColor:"#ffb74d"}}>{r.name}</div><div style={{fontSize:"11px",color:"#888"}}>{r.price}</div></div>
+                        {eaten&&<span style={{color:"#4caf50",fontWeight:"700",fontSize:"14px"}}>✓</span>}
+                        <span style={{fontSize:"11px",color:"#ffb74d",flexShrink:0}}>›</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <p style={{fontSize:"12px",fontWeight:"700",color:C.sub,marginBottom:"6px"}}>全レストラン</p>
+              {areaRests.length===0&&<p style={{fontSize:"13px",color:C.sub,padding:"8px 0"}}>このエリアにレストランはありません</p>}
+              {areaRests.map(r=>{
+                const fav=(data.restaurantFavorites||{})[r.id];
+                const eaten=(data.restaurantVisited||{})[r.id];
+                return (
+                  <div key={r.id} onClick={()=>window.open(r.link,'_blank')} style={{display:"flex",alignItems:"center",gap:"8px",padding:"7px 0",borderBottom:`1px solid ${C.bd}`,cursor:"pointer"}}>
+                    <span style={{fontSize:"16px"}}>{r.emoji}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:"13px",fontWeight:fav?"700":"400",color:fav?"#e65100":"#1976d2",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textDecoration:"underline",textDecorationColor:"#bbb"}}>{r.name}</div>
+                      <div style={{fontSize:"11px",color:C.sub}}>{r.cat} · {r.price}</div>
+                    </div>
+                    {fav&&<span style={{fontSize:"11px",color:"#e65100",fontWeight:"700",flexShrink:0}}>⭐</span>}
+                    {eaten&&<span style={{color:"#4caf50",fontWeight:"700",fontSize:"14px",flexShrink:0}}>✓</span>}
+                    <span style={{fontSize:"11px",color:"#aaa",flexShrink:0}}>›</span>
+                  </div>
+                );
+              })}
+            </>}
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+// ─── Restaurant Tab ────────────────────────────────────────────────────────
+function RestaurantTab({ data, park, onChange }) {
+  const C = useC();
+  const [filter, setFilter] = useState("all");
+  const [animId, setAnimId] = useState(null);
+  const restaurants = RESTAURANTS[park];
+  const filtered = restaurants.filter(r=>filter==="all"||r.cat===filter);
+  const cats = [...new Set(restaurants.map(r=>r.cat))];
+  const favs = data.restaurantFavorites||{};
+  const toggleFav = (id) => {
+    onChange("restaurantFavorites",{...favs,[id]:!favs[id]});
+    setAnimId(id); setTimeout(()=>setAnimId(null),400);
+  };
+  const sc = { background:C.card, borderRadius:"14px", padding:"14px 16px", marginBottom:"12px", boxShadow:C.shadow };
+  return (
+    <div>
+      <div style={{display:"flex",gap:"6px",overflowX:"auto",paddingBottom:"4px",marginBottom:"10px"}}>
+        <button style={S.chip(filter==="all",C)} onClick={()=>setFilter("all")}>すべて</button>
+        {cats.map(c=><button key={c} style={S.chip(filter===c,C)} onClick={()=>setFilter(c)}>{c}</button>)}
+      </div>
+      {filtered.map(r=>(
+        <div key={r.id} style={sc}>
+          <div style={{display:"flex",alignItems:"flex-start",gap:"12px"}}>
+            <span style={{fontSize:"28px"}}>{r.emoji}</span>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                <span style={{fontWeight:"700",fontSize:"14px",flex:1,color:C.text}}>{r.name}</span>
+                <button onClick={()=>toggleFav(r.id)} className={animId===r.id?"heart-anim":""}
+                  style={{background:"none",border:"none",fontSize:"22px",cursor:"pointer",color:favs[r.id]?"#e53935":"#ddd",flexShrink:0,padding:"0 0 0 8px",lineHeight:1}}>♥</button>
+              </div>
+              <p style={{fontSize:"11px",color:C.sub,margin:"2px 0"}}>{r.area} · {r.cat} · {r.price}</p>
+              <p style={{fontSize:"12px",color:C.sub,lineHeight:1.5,marginBottom:"10px"}}>{r.desc}</p>
+              <a href={r.link} target="_blank" rel="noopener noreferrer" style={{textDecoration:"none"}}>
+                <div style={{background:"#f0f4ff",borderRadius:"10px",padding:"10px",textAlign:"center",color:"#3949ab",fontWeight:"600",fontSize:"13px"}}>🔗 公式サイトで詳細を見る</div>
+              </a>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Hotel Tab ────────────────────────────────────────────────────────────
+function HotelTab({ data, park, onChange }) {
+  const C = useC();
+  const [filter, setFilter] = useState("all");
+  const [animId, setAnimId] = useState(null);
+  const favs = data.hotelFavorites||{};
+  const hotels = HOTELS[park];
+  const hotelTypes = [...new Set(hotels.map(h=>h.type))];
+  const filtered = hotels.filter(h=>filter==="all"||h.type===filter);
+  const toggleFav = (id) => {
+    onChange("hotelFavorites",{...favs,[id]:!favs[id]});
+    setAnimId(id); setTimeout(()=>setAnimId(null),400);
+  };
+  const sc = { background:C.card, borderRadius:"14px", padding:"14px 16px", marginBottom:"12px", boxShadow:C.shadow };
+  const favCount = hotels.filter(h=>favs[h.id]).length;
+  return (
+    <div>
+      {favCount>0&&(
+        <div style={{background:C.dark?"#1e3a2e":"#f0fdf4",border:"1px solid #86efac",borderRadius:"14px",padding:"12px 16px",marginBottom:"12px",display:"flex",alignItems:"center",gap:"10px"}}>
+          <span style={{fontSize:"24px"}}>♥</span>
+          <div>
+            <div style={{fontWeight:"700",fontSize:"13px",color:C.dark?"#86efac":"#166534"}}>{favCount}件のホテルをお気に入り済み</div>
+            <div style={{fontSize:"11px",color:C.sub,marginTop:"2px"}}>♥ マークで管理できます</div>
+          </div>
+        </div>
+      )}
+      <div style={{display:"flex",gap:"6px",overflowX:"auto",paddingBottom:"4px",marginBottom:"10px"}}>
+        <button style={S.chip(filter==="all",C)} onClick={()=>setFilter("all")}>すべて</button>
+        {hotelTypes.map(t=><button key={t} style={S.chip(filter===t,C)} onClick={()=>setFilter(t)}>{t}</button>)}
+      </div>
+      {filtered.map(h=>(
+        <div key={h.id} style={{...sc,border:favs[h.id]?`2px solid #e53935`:`1px solid ${C.bd}`}}>
+          <div style={{display:"flex",alignItems:"flex-start",gap:"12px"}}>
+            <span style={{fontSize:"28px"}}>{h.emoji}</span>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                <span style={{fontWeight:"700",fontSize:"14px",flex:1,color:C.text}}>{h.name}</span>
+                <button onClick={()=>toggleFav(h.id)} className={animId===h.id?"heart-anim":""}
+                  style={{background:"none",border:"none",fontSize:"22px",cursor:"pointer",color:favs[h.id]?"#e53935":"#ddd",flexShrink:0,padding:"0 0 0 8px",lineHeight:1}}>♥</button>
+              </div>
+              <p style={{fontSize:"11px",margin:"4px 0 2px",display:"flex",alignItems:"center",gap:"6px"}}>
+                {(()=>{
+                  const tc = h.type==="ディズニーオフィシャルホテル"
+                    ? {bg:"#fff8e1",color:"#f57f17",bd:"#ffe082"}
+                    : h.type==="オフィシャルホテル"
+                    ? {bg:"#e8f0fe",color:"#1a56db",bd:"#a8c7fa"}
+                    : {bg:"#f0fdf4",color:"#166534",bd:"#86efac"};
+                  return <span style={{background:tc.bg,color:tc.color,border:`1px solid ${tc.bd}`,borderRadius:"6px",padding:"1px 6px",fontWeight:"600",fontSize:"10px",whiteSpace:"nowrap"}}>{h.type}</span>;
+                })()}
+                <span style={{color:C.sub}}>{h.price}</span>
+              </p>
+              <p style={{fontSize:"12px",color:C.sub,lineHeight:1.5,marginBottom:"10px"}}>{h.desc}</p>
+              <a href={h.link} target="_blank" rel="noopener noreferrer" style={{textDecoration:"none"}}>
+                <div style={{background:"#f0f4ff",borderRadius:"10px",padding:"10px",textAlign:"center",color:"#3949ab",fontWeight:"600",fontSize:"13px"}}>🔗 公式サイトで詳細を見る</div>
+              </a>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Main App ──────────────────────────────────────────────────────────────
+const NAV = [
+  { key:"list",       icon:"🎡", label:"一覧" },
+  { key:"day",        icon:"📅", label:"当日" },
+  { key:"restaurant", icon:"🍴", label:"グルメ" },
+  { key:"hotel",      icon:"🛎️", label:"ホテル" },
+  { key:"map",        icon:"🗺️", label:"マップ" },
+  { key:"history",    icon:"⭐", label:"履歴" },
+];
+
+function DisneyTripPlanner() {
+  const [appData, setAppData] = useState(()=>loadData());
+  const [tab, setTab] = useState("list");
+  const [selectedAttr, setSelectedAttr] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const park = appData.park;
+  const users = appData.users || INITIAL_DATA.users;
+  const dark = appData.darkMode;
+
+  useEffect(()=>{ saveData(appData); }, [appData]);
+  useEffect(()=>{ document.body.style.background = dark ? '#111827' : '#f5f7fa'; }, [dark]);
+  const handleChange = useCallback((key,value)=>setAppData(prev=>({...prev,[key]:value})),[]);
+  const setPark = (p)=>handleChange("park",p);
+  const toggleDark = ()=>handleChange("darkMode",!dark);
+  const countdown = calcCountdown(appData.tripDate);
+
+  const attrs = DATA[park];
+  const wantList = attrs.filter(a=>(appData.plan||{})[a.id]);
+  const bothWantCount = attrs.filter(a=>users.every(u=>appData.want[a.id]?.[u.id])).length;
+  const riddenCount = attrs.filter(a=>users.every(u=>appData.ridden[a.id]?.[u.id])).length;
+
+  const headerBg = dark ? '#1f2937' : '#fff';
+  const navBg = dark ? '#1f2937' : '#fff';
+  const navBd = dark ? '#374151' : '#e8e8e8';
+  const textColor = dark ? '#f3f4f6' : '#1a1a1a';
+  const subColor = dark ? '#9ca3af' : '#888';
+  const parkTabsBg = dark ? '#374151' : '#f0f0f0';
+  const statBoxBg = dark ? '#1f2937' : '#fff';
+  const contentBg = dark ? '#111827' : '#f5f7fa';
+
+  return (
+    <DarkCtx.Provider value={dark}>
+      <div style={{minHeight:"100vh",background:contentBg,fontFamily:"-apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif",color:textColor,paddingBottom:"72px"}}>
+        {/* Header */}
+        <div style={{background:headerBg,boxShadow:`0 1px 0 ${navBd}`,position:"sticky",top:0,zIndex:100,paddingTop:"env(safe-area-inset-top,0px)"}}>
+          <div style={{padding:"14px 16px 0",position:"relative"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
+              <div style={{fontSize:"22px",fontWeight:"800",color:textColor,textAlign:"center"}}>✨ Disney Trip Planner</div>
+              <div style={{position:"absolute",right:"0",display:"flex",gap:"6px"}}>
+                <button onClick={toggleDark} style={{background:"none",border:"none",fontSize:"18px",cursor:"pointer"}} title="ダークモード">{dark?"☀️":"🌙"}</button>
+                <button onClick={()=>setShowSettings(true)} style={{background:"none",border:"none",fontSize:"20px",cursor:"pointer",color:"#888"}}>⚙️</button>
+              </div>
+            </div>
+            <div style={{fontSize:"12px",color:"#4caf50",textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",gap:"4px",marginTop:"2px",paddingBottom:"10px"}}>
+              <span style={{fontSize:"10px"}}>●</span>端末に保存済
+              {countdown!==null&&<span style={{background:"#e3f2fd",color:"#1976d2",borderRadius:"10px",padding:"1px 8px",marginLeft:"8px",fontWeight:"700"}}>{countdown>0?`あと${countdown}日`:countdown===0?"今日！🎉":`${Math.abs(countdown)}日前`}</span>}
+            </div>
+          </div>
+          <div style={{padding:"0 12px 12px"}}>
+            <div style={{display:"flex",background:parkTabsBg,borderRadius:"12px",padding:"4px"}}>
+              <button style={S.parkTabBtn(park==="land",dark)} onClick={()=>setPark("land")}>🏰 ランド</button>
+              <button style={S.parkTabBtn(park==="sea",dark)} onClick={()=>setPark("sea")}>🌊 シー</button>
+            </div>
+          </div>
+          {/* Stats */}
+          <div style={{display:"flex",gap:"8px",padding:"0 12px 12px"}}>
+            {[[attrs.length,"総数","#1976d2"],[bothWantCount,users.length===1?"行く！":"全員とも","#f57c00"],[wantList.length,"予定","#00897b"],[riddenCount,"訪問済","#388e3c"]].map(([v,l,c])=>(
+              <div key={l} style={{background:statBoxBg,borderRadius:"12px",padding:"10px 4px",textAlign:"center",flex:1,boxShadow:`0 1px 4px rgba(0,0,0,${dark?0.3:0.06})`}}>
+                <div style={{fontSize:"22px",fontWeight:"800",color:c}}>{v}</div>
+                <div style={{fontSize:"10px",color:subColor,marginTop:"2px"}}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div style={{padding:"12px"}}>
+          {tab==="list"&&<AttractionsTab data={appData} park={park} onOpen={setSelectedAttr} onChange={handleChange}/>}
+          {tab==="day"&&<DayTab data={appData} park={park} onOpen={setSelectedAttr} onChange={handleChange}/>}
+          {tab==="restaurant"&&<RestaurantTab data={appData} park={park} onChange={handleChange}/>}
+          {tab==="hotel"&&<HotelTab data={appData} park={park} onChange={handleChange}/>}
+          {tab==="map"&&<MapTab data={appData} park={park} onOpen={setSelectedAttr}/>}
+          {tab==="history"&&<HistoryTab data={appData} park={park} onChange={handleChange}/>}
+        </div>
+
+        {/* Bottom Nav */}
+        <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:"500px",background:navBg,borderTop:`1px solid ${navBd}`,display:"flex",zIndex:100,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
+          {NAV.map(t=>(
+            <button key={t.key} style={S.navBtn(tab===t.key,dark)} onClick={()=>setTab(t.key)}>
+              <span style={{fontSize:"20px",lineHeight:1}}>{t.icon}</span>{t.label}
+            </button>
+          ))}
+        </div>
+
+        {selectedAttr&&<AttrModal attr={selectedAttr} data={appData} onClose={()=>setSelectedAttr(null)} onChange={handleChange}/>}
+        {showSettings&&<SettingsModal data={appData} onClose={()=>setShowSettings(false)} onChange={handleChange}/>}
+      </div>
+    </DarkCtx.Provider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<DisneyTripPlanner/>);
+</script>
+</body>
+</html>
